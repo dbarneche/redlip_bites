@@ -41,5 +41,15 @@ plan  <-  drake::drake_plan(
 		fig_out_folder
 		figS1_make(file_out('output/figures/figS1.pdf'), mouth_data, mouth_model)
 	},
-    figS1_png = pngs_generate(file_in('output/figures/figS1.pdf'), file_out('output/figures/figS1.png'))
+    figS1_png = pngs_generate(file_in('output/figures/figS1.pdf'), file_out('output/figures/figS1.png')),
+    figS2_pdf = {
+		fig_out_folder
+		figS2_make(file_out('output/figures/figS2.pdf'), bites_data, bites_model$best, 'ln_mass_g')
+	},
+    figS2_png = pngs_generate(file_in('output/figures/figS2.pdf'), file_out('output/figures/figS2.png')),
+    figS3_pdf = {
+		fig_out_folder
+		figS2_make(file_out('output/figures/figS3.pdf'), mouth_data, mouth_model, 'ln_mass_g')
+	},
+    figS3_png = pngs_generate(file_in('output/figures/figS3.pdf'), file_out('output/figures/figS3.png'))
 )

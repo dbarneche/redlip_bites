@@ -77,6 +77,13 @@ gg_relative_text  <-  function (ggobject, px, py, lab, ...) {
 	annotate('text', x.p, y.p, label = lab, ...)
 }
 
+make_aes_vec  <-  function (data, col) {
+	data  <-  data %>% dplyr::select(c('local', col)) %>% dplyr::distinct(.keep_all = TRUE)
+	x  <-  data[[col]]
+	names(x)  <-  data$local
+	x
+}
+
 ###############
 # PAPER FIGURES
 ###############
@@ -284,16 +291,8 @@ figS1  <-  function (mouth_data, mouth_model) {
 	fit_d       <-  data.frame(x = x_range, y = exp(coefs[1]) * x_range ^ coefs[2])
 	r2          <-  brms::bayes_R2(mouth_model) %>% data.frame() %>% select(Estimate) %>% LoLinR::rounded(2)
 
-
-	make_col_vec  <-  function (data, col) {
-		data  <-  data %>% dplyr::select(c('local', col)) %>% dplyr::distinct(.keep_all = TRUE)
-		x  <-  data[[col]]
-		names(x)  <-  data$local
-		x
-	}
-
-	my_cols  <-  make_col_vec(mouth_data, 'colors')
-	my_shps  <-  make_col_vec(mouth_data, 'shapes')
+	my_cols  <-  make_aes_vec(mouth_data, 'colors')
+	my_shps  <-  make_aes_vec(mouth_data, 'shapes')
 
 	g1  <-  ggplot() +
 				geom_point(data = mouth_data, mapping = aes(x = mass_g, y = mouth_volume, fill = local, colour = local, shape = local), size = 2.5, alpha = 0.8, show.legend = FALSE) +
@@ -307,4 +306,72 @@ figS1  <-  function (mouth_data, mouth_model) {
 	g1 + 
 		gg_relative_text(g1, px = 0.03, py = 0.95, deparse(substitute(y == k %.% x^z, list(k = LoLinR::rounded(exp(coefs[1])), z = LoLinR::rounded(coefs[2], 2)))), fontface = 'bold', size = 5, hjust = 0, parse = TRUE) +
 		gg_relative_text(g1, px = 0.03, py = 0.85, deparse(substitute('Bayesian ' * italic('R')^2 == z, list(z = r2))), fontface = 'bold', size = 5, hjust = 0, parse = TRUE) 
+}
+
+figS2_make  <-  function (dest, ...) {
+    ggplot2::ggsave(dest, figS2(...), device = 'pdf', width = 14.37, height = 3.67, units = 'in', onefile = FALSE)
+}
+
+figS2  <-  function (data, model, x) {
+	# preamble
+	my_theme  <-  function () {
+		theme_bw() +
+		theme(plot.margin = unit(c(0.2, 0.1, 0.4, 0.2), 'in'), 
+			panel.grid = element_blank(),
+			axis.title.x = element_text(size = 15, vjust = -1, hjust = 0.5),
+			axis.title.y = element_text(size = 15, vjust = 4, hjust = 0.5),
+			axis.text.x = element_text(size = 10, vjust = -1, hjust = 0.5),
+			axis.text.y = element_text(size = 10))
+	}
+	
+	response_get  <- function (model) {
+		strsplit(as.character(model$formula)[1], ' ~ ', fixed  = TRUE)[[1]][1]
+	}
+
+	y_rep  <-  brms::posterior_predict(model)
+	resp   <-  response_get(model)
+	y      <-  model$data[[resp]]
+	x      <-  data[[x]]
+
+	bayesplot::color_scheme_set('gray')
+	
+	# for p_c
+	my_colors  <-  make_aes_vec(data, 'colors')
+	my_shapes  <-  make_aes_vec(data, 'shapes')
+	s_dat      <-  data.frame(y = y, y_rep = colMeans(y_rep), group = data$local, stringsAsFactors = FALSE)
+	
+	p_a  <-  bayesplot::ppc_dens_overlay(y, y_rep[1:200, ]) +
+				my_theme() + 
+				theme(legend.text = element_blank(), legend.position = c(0.08, 0.93), legend.background = element_blank(), legend.key.height = unit(0.05, 'npc')) +
+			    labs(y = 'Density', x = 'Response')
+	p_a  <-  p_a + 
+				gg_relative_text(p_a, px = 0.12, py = 0.92, 'Observed', size = 3, hjust = 0) +
+				gg_relative_text(p_a, px = 0.12, py = 0.86, 'Predicted', size = 3, hjust = 0)
+			    
+	p_b  <-  ggplot(s_dat, aes(x = y_rep)) + 
+			    geom_histogram(colour = 'black', fill = 'grey60', size = 0.2) +
+			    geom_vline(aes(xintercept = mean(y)), color = 'black', size = 0.5, lty = 2) +
+			    labs(x = 'Posterior predicted response', y = 'Frequency') + 
+			    my_theme() + 
+				theme(legend.title = element_blank(), legend.text = element_text(size = 18, hjust = 0), legend.position = c(0.8, 0.8), legend.background = element_blank())
+
+	p_c  <-  ggplot(data = s_dat, aes(x = y, y = y_rep)) +
+				geom_smooth(method = 'lm', se = FALSE, lty = 2, colour = 'black', size = 0.5) + 
+				geom_point(aes(fill = group, shape = group, colour = group), size = 2) + 
+				scale_fill_manual(values = alpha(my_colors, 0.8)) + 
+				scale_colour_manual(values = my_colors) + 
+				scale_shape_manual(values = my_shapes) + 
+				labs(y = 'Predicted', x = 'Observed') + 
+				my_theme() + 
+				theme(legend.position = 'none')
+
+	p_d  <-  bayesplot::ppc_intervals(y = y, yrep = y_rep, x = x, prob = 0.5) +
+			    labs(x = 'ln Body mass (g)', y = 'Response') +
+			    my_theme() + 
+			    theme(legend.text = element_blank(), legend.position = c(0.75, 0.93), legend.background = element_blank(), legend.key.height = unit(0.05, 'npc'))
+	p_d  <-  p_d + 
+				gg_relative_text(p_d, px = 0.78, py = 0.925, 'Observed', size = 3, hjust = 0) +
+				gg_relative_text(p_d, px = 0.78, py = 0.855, 'Predicted', size = 3, hjust = 0)
+
+	grid.arrange(p_a, p_b, p_c, p_d, ncol = 4)
 }
