@@ -78,7 +78,7 @@ gg_relative_text  <-  function (ggobject, px, py, lab, ...) {
 }
 
 make_aes_vec  <-  function (data, col) {
-	data  <-  data %>% dplyr::select(c('local', col)) %>% dplyr::distinct(.keep_all = TRUE)
+	data  <-  data %>% dplyr::select(c('local', all_of(col))) %>% dplyr::distinct(.keep_all = TRUE)
 	x  <-  data[[col]]
 	names(x)  <-  data$local
 	x
@@ -88,7 +88,7 @@ make_aes_vec  <-  function (data, col) {
 # PAPER FIGURES
 ###############
 fig1_make  <-  function (dest, ...) {
-    ggplot2::ggsave(dest, fig1(...), device = 'pdf', width = 10, height = 5, units = 'in', onefile = FALSE)
+    ggplot2::ggsave(dest, fig1(...), device = 'pdf', width = 10, height = 5, units = 'in', onefile = FALSE, useDingbats = FALSE)
 }
 
 fig1  <-  function (bites_data) {
@@ -126,7 +126,7 @@ fig1  <-  function (bites_data) {
 }
 
 fig2_make  <-  function (dest, ...) {
-    ggplot2::ggsave(dest, fig2(...), device = 'pdf', width = 5, height = 5, units = 'in', onefile = FALSE)
+    ggplot2::ggsave(dest, fig2(...), device = 'pdf', width = 5, height = 5, units = 'in', onefile = FALSE, useDingbats = FALSE)
 }
 
 fig2  <-  function (intestine_data) {
@@ -167,35 +167,43 @@ fig2  <-  function (intestine_data) {
 }
 
 fig3_make  <-  function (dest, ...) {
-    ggplot2::ggsave(dest, fig3(...), device = 'pdf', width = 12, height = 5, units = 'in', onefile = FALSE)
+    ggplot2::ggsave(dest, fig3(...), device = 'pdf', width = 12, height = 5, units = 'in', onefile = FALSE, useDingbats = FALSE)
 }
 
 fig3  <-  function (gut_content_data, diet_data) {
+	gut_content_data  <-  gut_content_data %>% 
+						  dplyr::filter(item != 'Total') %>%
+						  droplevels
+
 	mean_cont  <-  gut_content_data %>% 
-						dplyr::group_by(local, item) %>% 
-						dplyr::summarise('mean' = mean(vol_per), 'error' = sd(vol_per) / sqrt(n())) %>%
-						as.data.frame() %>%
-						dplyr::filter(mean > 0, item != 'Total') %>%
-						droplevels()
+				   dplyr::group_by(local, item) %>% 
+				   dplyr::summarise('mean' = mean(vol_per), 'error' = sd(vol_per) / sqrt(n())) %>%
+				   as.data.frame %>%
+				   dplyr::filter(mean > 0)
 
 	iai  <-  gut_content_data %>% 
-				dplyr::filter(item != 'Total') %>% 
-				dplyr::group_by(local, item) %>% 
-				dplyr::summarise(numb_stomach = sum(vol_per != 0), occurrence = numb_stomach / n() * 100, vol_mm = sum(vol_mm)) %>%
-				dplyr::group_by(local) %>%
-				dplyr::mutate(vol_per = vol_mm / sum(vol_mm) * 100, V_x_F = occurrence * vol_per, iai = V_x_F / sum(V_x_F), iai_per = iai * 100) %>%
-				dplyr::filter(iai_per > 0)
+			 dplyr::group_by(local, item) %>% 
+			 dplyr::summarise(numb_stomach = sum(vol_per), occurrence = numb_stomach / n() * 100, vol_mm = sum(vol_mm)) %>%
+			 dplyr::group_by(local) %>%
+			 dplyr::mutate(vol_per = vol_mm / sum(vol_mm) * 100, V_x_F = occurrence * vol_per, iai = V_x_F / sum(V_x_F), iai_per = iai * 100) %>%
+			 as.data.frame %>%
+			 dplyr::filter(iai_per > 0)
 
-	gut_content_data  <-  left_join(gut_content_data, diet_data %>% dplyr::select(spp, colors, shapes) %>% dplyr::distinct(.keep_all = TRUE)) %>%
-						      dplyr::filter(vol_per > 0, item != 'Total') %>%
-						      droplevels()
+	gut_content_data  <-  left_join(gut_content_data,
+								   {diet_data %>%
+								    dplyr::select(spp, colors, shapes) %>%
+								    dplyr::distinct(.keep_all = TRUE)
+								    }) %>%
+						  dplyr::group_by(local, item) %>%
+						  dplyr::mutate(sum_item = sum(vol_per)) %>%
+						  dplyr::ungroup() %>%
+						  dplyr::filter(sum_item > 0)
 
 	ggplot(data = gut_content_data) +
 		facet_grid(.~ local, switch = 'both') +
 		geom_point(aes(x = vol_per, y = item), shape = gut_content_data$shapes, size = 3, colour = gut_content_data$colors, fill = alpha(gut_content_data$colors, 0.7), stroke = 0.3) +
 		scale_x_discrete(limits = c('SPSPA', 'Rocas', 'Salvador', 'St Catarina', 'Principe')) +
-		scale_y_discrete(limits = c('Plastic', 'Other animals', 'Eggs', 'Copepoda', 'Mollusca', 'Uniden. algae', 'Rhodophyta',
-		                        'Chlorophyta', 'Heterokontophyta', 'Sediment', 'Organic detritus')) +
+		scale_y_discrete(limits = c('Plastic', 'Other animals', 'Eggs', 'Copepoda', 'Mollusca', 'Uniden. algae', 'Rhodophyta', 'Chlorophyta', 'Heterokontophyta', 'Sediment', 'Organic detritus')) +
 		scale_x_sqrt(breaks = c(0, 1, 10, 30, 60, 100), position = 'top') +
 		xlab(label = 'Volume (%)') +
 		ylab(label = NULL) +
@@ -217,7 +225,7 @@ fig3  <-  function (gut_content_data, diet_data) {
 }
 
 fig4_make  <-  function (dest, ...) {
-    ggplot2::ggsave(dest, fig4(...), device = 'pdf', width = 8.8, height = 3.8, units = 'in', onefile = FALSE)
+    ggplot2::ggsave(dest, fig4(...), device = 'pdf', width = 8.8, height = 3.8, units = 'in', onefile = FALSE, useDingbats = FALSE)
 }
 
 fig4  <-  function (bites_data, bites_model) {
@@ -255,33 +263,38 @@ fig4  <-  function (bites_data, bites_model) {
 }
 
 fig5_make  <-  function (dest, ...) {
-    ggplot2::ggsave(dest, fig5(...), device = 'pdf', width = 6, height = 6, units = 'in', onefile = FALSE)
+    ggplot2::ggsave(dest, fig5(...), device = 'pdf', width = 6, height = 6, units = 'in', onefile = FALSE, useDingbats = FALSE)
 }
 
-fig5  <-  function (diet_model, bites_model, diet_data) {
-	diet_coefs   <-  exp(coef(diet_model)$local[, 'Estimate', 'Intercept'])
-	bites_coefs  <-  exp(coef(bites_model)$local[, 'Estimate', 'Intercept'][names(diet_coefs)])
-	df  <-  data.frame(x = unname(diet_coefs), y = unname(bites_coefs), shapes = diet_data$shapes[match(names(diet_coefs), diet_data$local)], colors = diet_data$colors[match(names(diet_coefs), diet_data$local)], local = names(diet_coefs), stringsAsFactors = FALSE)
-	lm_mod   <-  lm(bites_coefs ~ diet_coefs)
-	cor_mod  <-  cor.test(diet_coefs, bites_coefs)$estimate
-	coefs    <-  coef(summary(lm_mod))
-	fit_d    <-  data.frame(x = range(diet_coefs), y = coefs[1, 1] + coefs[2, 1] * range(diet_coefs))
+fig5  <-  function (logratios_model, bites_model, diet_data) {
+	ratio_coefs         <-  exp(coef(logratios_model)$local[, 'Estimate', 'Intercept'])
+	names(ratio_coefs)  <-  c('principe_island', 'atol_das_rocas', 'bahia', 'aspsp', 'santa_catarina')
+	bites_coefs        <-  exp(coef(bites_model)$local[, 'Estimate', 'Intercept'][names(ratio_coefs)])
 
-	g1  <-  ggplot() +
-			geom_point(data = df, mapping = aes(x = x, y = y, fill = local, colour = local, shape = local), size = 2.5, alpha = 0.8, show.legend = FALSE) +
-			geom_line(data = fit_d, mapping = aes(x = x, y = y), col = 'black', lty = 2, size = 0.5) +
+	df  <-  data.frame(x = unname(ratio_coefs), y = unname(bites_coefs), shapes = diet_data$shapes[match(names(ratio_coefs), diet_data$local)], colors = diet_data$colors[match(names(ratio_coefs), diet_data$local)], local = names(ratio_coefs), stringsAsFactors = FALSE) %>% 
+			dplyr::mutate(local = dplyr::recode(local, aspsp = 'SPSPA', atol_das_rocas = 'Rocas', bahia = 'Salvador', principe_island = 'Principe', santa_catarina = 'St Catarina'))
+	lm_mod   <-  lm(bites_coefs ~ ratio_coefs)
+	cor_mod  <-  cor.test(ratio_coefs, bites_coefs)$estimate
+	coefs    <-  coef(summary(lm_mod))
+	fit_d    <-  data.frame(x = range(ratio_coefs), y = coefs[1, 1] + coefs[2, 1] * range(ratio_coefs))
+
+	g1  <-  ggplot(data = df, mapping = aes(x = x, y = y, fill = local, colour = local, shape = local, label = local)) +
+			geom_point(size = 4, alpha = 0.8, show.legend = FALSE) +
+			# geom_line(data = fit_d, mapping = aes(x = x, y = y), col = 'black', lty = 2, size = 0.5) +
 			scale_colour_manual(values = df$colors) +
 			scale_fill_manual(values = df$colors) +
 			scale_shape_manual(values = df$shapes) +
-			xlab('Normalised gut content volume') +
+			scale_x_continuous(limits = c(0.005, 0.021)) +
+			xlab('Normalised diet ratio') +
 			ylab('Normalised bite rate') +
-			my_theme()
+			my_theme() + 
+			geom_text(check_overlap = TRUE, hjust = 0, nudge_x = 0.0005, show.legend = FALSE, colour = 'black')
 	g1 + 
-		gg_relative_text(g1, px = 0.05, py = 0.95, deparse(substitute(italic('r') == a, list(a = unname(round(cor_mod, 2))))), size = 4, hjust = 0, parse = TRUE)
+		gg_relative_text(g1, px = 0.95, py = 0.95, deparse(substitute(italic('r') == a * ' (N.S.)', list(a = unname(round(cor_mod, 2))))), size = 4, hjust = 1, parse = TRUE)
 }
 
 figS1_make  <-  function (dest, ...) {
-    ggplot2::ggsave(dest, figS1(...), device = 'pdf', width = 6, height = 6, units = 'in', onefile = FALSE)
+    ggplot2::ggsave(dest, figS1(...), device = 'pdf', width = 6, height = 6, units = 'in', onefile = FALSE, useDingbats = FALSE)
 }
 
 figS1  <-  function (mouth_data, mouth_model) {
@@ -309,7 +322,7 @@ figS1  <-  function (mouth_data, mouth_model) {
 }
 
 figS2_make  <-  function (dest, ...) {
-    ggplot2::ggsave(dest, figS2(...), device = 'pdf', width = 14.37, height = 3.67, units = 'in', onefile = FALSE)
+    ggplot2::ggsave(dest, figS2(...), device = 'pdf', width = 14.37, height = 3.67, units = 'in', onefile = FALSE, useDingbats = FALSE)
 }
 
 figS2  <-  function (data, model, x) {

@@ -1,15 +1,16 @@
 plan  <-  drake::drake_plan(
 	cols = c('ophioblennius_spST' = 'tomato', 'ophioblennius_trinitatis' = 'dodgerblue2', 'ophioblennius_sp' = 'darkseagreen3', 'ophioblennius_macclurei' = 'goldenrod2'),
     shps = c('ophioblennius_spST' = 21, 'ophioblennius_trinitatis' = 24, 'ophioblennius_sp' = 22, 'ophioblennius_macclurei' = 23),
-	bites_data = bite_data_clean(cols, shps, file_name = file_in('data/bites_data.csv')),
-	diet_data = diet_data_clean(cols, shps, bites_data, file_name = file_in('data/diet_data.csv')),
-	intestine_data = intestine_data_clean(cols, shps, file_name = file_in('data/diet_data.csv')),
-	gut_content_data = gut_content_data_make(diet_data),
-	mouth_data = mouth_data_clean(cols, shps, file_name = 'data/diet_data.csv'),
+	bites_data = bite_data_make(cols, shps, file_name = file_in('data/bites_data.csv')),
 	bites_model = bites_model_run(bites_data),
-	diet_model = diet_model_run(diet_data),
-	intestine_model = stats::kruskal.test(intestine_data$local ~ intestine_data$QI),
+	mouth_data = mouth_data_make(cols, shps, file_name = 'data/diet_data.csv'),
 	mouth_model = mouth_model_run(mouth_data),
+	diet_data = diet_data_make(cols, shps, bites_data, file_name = file_in('data/diet_data.csv')),
+	gut_content_data = gut_content_data_make(diet_data),
+	logratios_data = logratios_data_make(diet_data, bites_data, gut_content_data),
+	logratios_model = logratios_model_run(logratios_data),
+	intestine_data = intestine_data_make(cols, shps, file_name = file_in('data/diet_data.csv')),
+	intestine_model = stats::kruskal.test(intestine_data$local ~ intestine_data$QI),
     # Figures ----------------------------------------------
     fig_out_folder = dir.create('output/figures/', recursive = TRUE, showWarnings = FALSE),
 	fig1_pdf = {
@@ -34,7 +35,7 @@ plan  <-  drake::drake_plan(
     fig4_png = pngs_generate(file_in('output/figures/fig4.pdf'), file_out('output/figures/fig4.png')),
 	fig5_pdf = {
 		fig_out_folder
-		fig5_make(file_out('output/figures/fig5.pdf'), diet_model, bites_model$best, diet_data)
+		fig5_make(file_out('output/figures/fig5.pdf'), logratios_model$best, bites_model$best, diet_data)
 	},
     fig5_png = pngs_generate(file_in('output/figures/fig5.pdf'), file_out('output/figures/fig5.png')),    
 	figS1_pdf = {
