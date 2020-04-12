@@ -112,7 +112,7 @@ logratios_data_make  <-  function (diet_data, bites_data, gut_content_data) {
                                   ln_fullness = log(fullness * 0.25),
                                   temp_eff = unique(bites_data$mean_temp_K - 273.15) - mean_temp) %>%
                     dplyr::mutate_if(is.factor, as.character) %>%
-                    dplyr::select(spp, local, ind, ln_fullness, ln_mass_g, mean_temp, temp_eff)
+                    dplyr::select(spp, local, ind, ln_fullness, ln_mass_g, mean_temp, temp_eff, colors, shapes)
 
     plyr::ddply(gut_content_data, .(local, ind), function (x) {
         x %>% 

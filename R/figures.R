@@ -183,7 +183,7 @@ fig3  <-  function (gut_content_data, diet_data) {
 
 	iai  <-  gut_content_data %>% 
 			 dplyr::group_by(local, item) %>% 
-			 dplyr::summarise(numb_stomach = sum(vol_per), occurrence = numb_stomach / n() * 100, vol_mm = sum(vol_mm)) %>%
+			 dplyr::summarise(numb_stomach = sum(vol_per > 0), occurrence = numb_stomach / n() * 100, vol_mm = sum(vol_mm)) %>%
 			 dplyr::group_by(local) %>%
 			 dplyr::mutate(vol_per = vol_mm / sum(vol_mm) * 100, V_x_F = occurrence * vol_per, iai = V_x_F / sum(V_x_F), iai_per = iai * 100) %>%
 			 as.data.frame %>%
@@ -321,11 +321,16 @@ figS1  <-  function (mouth_data, mouth_model) {
 		gg_relative_text(g1, px = 0.03, py = 0.85, deparse(substitute('Bayesian ' * italic('R')^2 == z, list(z = r2))), fontface = 'bold', size = 5, hjust = 0, parse = TRUE) 
 }
 
-figS2_make  <-  function (dest, ...) {
-    ggplot2::ggsave(dest, figS2(...), device = 'pdf', width = 14.37, height = 3.67, units = 'in', onefile = FALSE, useDingbats = FALSE)
+figS2_make  <-  function (dest, logratios = FALSE, ...) {
+    if (logratios) {
+		ggplot2::ggsave(dest, figS2(..., logratios = logratios), device = 'pdf', width = (14.37 / 4) * 3, height = 3.67, units = 'in', onefile = FALSE, useDingbats = FALSE)
+    } else {
+    	ggplot2::ggsave(dest, figS2(...), device = 'pdf', width = 14.37, height = 3.67, units = 'in', onefile = FALSE, useDingbats = FALSE)
+    }
+    
 }
 
-figS2  <-  function (data, model, x) {
+figS2  <-  function (data, model, x, logratios = FALSE) {
 	# preamble
 	my_theme  <-  function () {
 		theme_bw() +
@@ -344,7 +349,6 @@ figS2  <-  function (data, model, x) {
 	y_rep  <-  brms::posterior_predict(model)
 	resp   <-  response_get(model)
 	y      <-  model$data[[resp]]
-	x      <-  data[[x]]
 
 	bayesplot::color_scheme_set('gray')
 	
@@ -378,13 +382,17 @@ figS2  <-  function (data, model, x) {
 				my_theme() + 
 				theme(legend.position = 'none')
 
-	p_d  <-  bayesplot::ppc_intervals(y = y, yrep = y_rep, x = x, prob = 0.5) +
-			    labs(x = 'ln Body mass (g)', y = 'Response') +
-			    my_theme() + 
-			    theme(legend.text = element_blank(), legend.position = c(0.75, 0.93), legend.background = element_blank(), legend.key.height = unit(0.05, 'npc'))
-	p_d  <-  p_d + 
-				gg_relative_text(p_d, px = 0.78, py = 0.925, 'Observed', size = 3, hjust = 0) +
-				gg_relative_text(p_d, px = 0.78, py = 0.855, 'Predicted', size = 3, hjust = 0)
-
-	grid.arrange(p_a, p_b, p_c, p_d, ncol = 4)
+	if (logratios) {
+		grid.arrange(p_a, p_b, p_c, ncol = 3)
+	} else {
+		x    <-  data[[x]]
+		p_d  <-  bayesplot::ppc_intervals(y = y, yrep = y_rep, x = x, prob = 0.5) +
+				 labs(x = 'ln Body mass (g)', y = 'Response') +
+				 my_theme() + 
+			     theme(legend.text = element_blank(), legend.position = c(0.75, 0.93), legend.background = element_blank(), legend.key.height = unit(0.05, 'npc'))
+		p_d  <-  p_d + 
+				 gg_relative_text(p_d, px = 0.78, py = 0.925, 'Observed', size = 3, hjust = 0) +
+				 gg_relative_text(p_d, px = 0.78, py = 0.855, 'Predicted', size = 3, hjust = 0)
+		grid.arrange(p_a, p_b, p_c, p_d, ncol = 4)
+	}	
 }

@@ -45,12 +45,17 @@ plan  <-  drake::drake_plan(
     figS1_png = pngs_generate(file_in('output/figures/figS1.pdf'), file_out('output/figures/figS1.png')),
     figS2_pdf = {
 		fig_out_folder
-		figS2_make(file_out('output/figures/figS2.pdf'), bites_data, bites_model$best, 'ln_mass_g')
+		figS2_make(file_out('output/figures/figS2.pdf'), logratios = FALSE, bites_data, bites_model$best, 'ln_mass_g')
 	},
     figS2_png = pngs_generate(file_in('output/figures/figS2.pdf'), file_out('output/figures/figS2.png')),
     figS3_pdf = {
 		fig_out_folder
-		figS2_make(file_out('output/figures/figS3.pdf'), mouth_data, mouth_model, 'ln_mass_g')
+		figS2_make(file_out('output/figures/figS3.pdf'), logratios = FALSE, mouth_data, mouth_model, 'ln_mass_g')
 	},
-    figS3_png = pngs_generate(file_in('output/figures/figS3.pdf'), file_out('output/figures/figS3.png'))
+    figS3_png = pngs_generate(file_in('output/figures/figS3.pdf'), file_out('output/figures/figS3.png')),
+    figS4_pdf = {
+		fig_out_folder
+		figS2_make(file_out('output/figures/figS4.pdf'), logratios = TRUE, logratios_data, logratios_model$best)
+	},
+    figS4_png = pngs_generate(file_in('output/figures/figS4.pdf'), file_out('output/figures/figS4.png'))
 )
