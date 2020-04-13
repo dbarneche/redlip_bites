@@ -15,12 +15,12 @@ plan  <-  drake::drake_plan(
     fig_out_folder = dir.create('output/figures/', recursive = TRUE, showWarnings = FALSE),
 	fig1_pdf = {
 		fig_out_folder
-		fig1_make(file_out('output/figures/fig1.pdf'), bites_data)
+		fig1_make(file_out('output/figures/fig1.pdf'), bites_data, bites_model$best)
 	},
     fig1_png = pngs_generate(file_in('output/figures/fig1.pdf'), file_out('output/figures/fig1.png')),
 	fig2_pdf = {
 		fig_out_folder
-		fig2_make(file_out('output/figures/fig2.pdf'), intestine_data)
+		fig2_make(file_out('output/figures/fig2.pdf'), mouth_data, mouth_model)
 	},
     fig2_png = pngs_generate(file_in('output/figures/fig2.pdf'), file_out('output/figures/fig2.png')),
 	fig3_pdf = {
@@ -30,32 +30,32 @@ plan  <-  drake::drake_plan(
     fig3_png = pngs_generate(file_in('output/figures/fig3.pdf'), file_out('output/figures/fig3.png')),
 	fig4_pdf = {
 		fig_out_folder
-		fig4_make(file_out('output/figures/fig4.pdf'), bites_data, bites_model$best)
+		fig4_make(file_out('output/figures/fig4.pdf'), logratios_model$best, bites_model$best, diet_data)
 	},
-    fig4_png = pngs_generate(file_in('output/figures/fig4.pdf'), file_out('output/figures/fig4.png')),
-	fig5_pdf = {
+    fig4_png = pngs_generate(file_in('output/figures/fig4.pdf'), file_out('output/figures/fig4.png')),    
+    figS1_pdf = {
 		fig_out_folder
-		fig5_make(file_out('output/figures/fig5.pdf'), logratios_model$best, bites_model$best, diet_data)
-	},
-    fig5_png = pngs_generate(file_in('output/figures/fig5.pdf'), file_out('output/figures/fig5.png')),    
-	figS1_pdf = {
-		fig_out_folder
-		figS1_make(file_out('output/figures/figS1.pdf'), mouth_data, mouth_model)
+		figS1to3_make(file_out('output/figures/figS1.pdf'), logratios = FALSE, bites_data, bites_model$best, 'ln_mass_g')
 	},
     figS1_png = pngs_generate(file_in('output/figures/figS1.pdf'), file_out('output/figures/figS1.png')),
     figS2_pdf = {
 		fig_out_folder
-		figS2_make(file_out('output/figures/figS2.pdf'), logratios = FALSE, bites_data, bites_model$best, 'ln_mass_g')
+		figS1to3_make(file_out('output/figures/figS2.pdf'), logratios = FALSE, mouth_data, mouth_model, 'ln_mass_g')
 	},
     figS2_png = pngs_generate(file_in('output/figures/figS2.pdf'), file_out('output/figures/figS2.png')),
     figS3_pdf = {
 		fig_out_folder
-		figS2_make(file_out('output/figures/figS3.pdf'), logratios = FALSE, mouth_data, mouth_model, 'ln_mass_g')
+		figS1to3_make(file_out('output/figures/figS3.pdf'), logratios = TRUE, logratios_data, logratios_model$best)
 	},
     figS3_png = pngs_generate(file_in('output/figures/figS3.pdf'), file_out('output/figures/figS3.png')),
-    figS4_pdf = {
+	figS4_pdf = {
 		fig_out_folder
-		figS2_make(file_out('output/figures/figS4.pdf'), logratios = TRUE, logratios_data, logratios_model$best)
+		figS4_make(file_out('output/figures/figS4.pdf'), bites_data)
 	},
-    figS4_png = pngs_generate(file_in('output/figures/figS4.pdf'), file_out('output/figures/figS4.png'))
+    figS4_png = pngs_generate(file_in('output/figures/figS4.pdf'), file_out('output/figures/figS4.png')),
+	figS5_pdf = {
+		fig_out_folder
+		figS5_make(file_out('output/figures/figS5.pdf'), intestine_data)
+	},
+    figS5_png = pngs_generate(file_in('output/figures/figS5.pdf'), file_out('output/figures/figS5.png'))
 )

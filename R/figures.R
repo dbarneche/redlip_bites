@@ -88,82 +88,69 @@ make_aes_vec  <-  function (data, col) {
 # PAPER FIGURES
 ###############
 fig1_make  <-  function (dest, ...) {
-    ggplot2::ggsave(dest, fig1(...), device = 'pdf', width = 10, height = 5, units = 'in', onefile = FALSE, useDingbats = FALSE)
+    ggplot2::ggsave(dest, fig1(...), device = 'pdf', width = 8.8, height = 3.8, units = 'in', onefile = FALSE, useDingbats = FALSE)
 }
 
-fig1  <-  function (bites_data) {
-	bites_data  <-  bites_data %>% 
-						dplyr::mutate(bites_min = bites_original / obs_time, 
-									  local_original = as.factor(local_original),
-									  local_original = dplyr::recode(local_original, ascension_island = 'Ascension', aspsp = 'SPSPA', atol_das_rocas = 'Rocas', bahia = 'Salvador', bocas_del_toro = 'Bocas', fernando_de_noronha = 'Noronha', principe_island = 'Principe', santa_catarina.sum = 'SC summer', santa_catarina.win = 'SC winter', .default = levels(local_original))
-									 )
-	mean_bites  <-  bites_data %>% 
-						dplyr::group_by(local_original) %>% 
-						dplyr::summarise('mean' = mean(bites_min), 'error' = sd(bites_min) / sqrt(n())) %>%
-						as.data.frame()
+fig1  <-  function (bites_data, bites_model) {
+	fixefs       <-  fixef(bites_model)[, 'Estimate']
+	alpha        <-  fixefs['ln_mass_g']
+	Er           <-  fixefs['invKT']
+	b1           <-  fixefs['ln_obs_time']
+	lnB0         <-  fixefs['Intercept']
+	r2           <-  bayes_R2(bites_model) %>% data.frame() %>% select(Estimate) %>% LoLinR::rounded(2)
+	model_preds  <-  predict(bites_model)
+	for_figs     <-  brms::conditional_effects(bites_model, points = TRUE)
+	mass_ggplot  <-  model_ggplot_data_make(bites_data, for_figs, 'ln_mass_g')
+	aes_vecs_a   <-  aes_vec_list_create(c('colors', 'shapes'), data = mass_ggplot$points)
+	k_a          <-  mass_ggplot$output %>% filter(row_number() == 1) %>% summarise(lnB0 + ln_obs_time * b1 + invKT * Er) %>% unlist %>% unname %>% LoLinR::rounded(2)
+	temp_ggplot  <-  model_ggplot_data_make(bites_data, for_figs, 'invKT')
+	aes_vecs_b   <-  aes_vec_list_create(c('colors', 'shapes'), data = temp_ggplot$points)
+	k_b          <-  temp_ggplot$output %>% filter(row_number() == 1) %>% summarise(lnB0 + ln_obs_time * b1 + ln_mass_g * alpha) %>% unlist %>% unname %>% LoLinR::rounded(2)
+	axis_labs_b  <-  temp_to_invKT(seq(18, 30, 4), bites_data$mean_temp_K[1])
 
-	ggplot(data = bites_data) +
-		geom_boxplot(aes(x = local_original, y = bites_min), outlier.shape = NA, notch = TRUE) +
-		geom_jitter(aes(x = local_original, y = bites_min), fill = alpha(bites_data$colors, 0.8), colour = bites_data$colors,
-	                        shape = bites_data$shapes, size = 4, position = position_jitter(0.1, 0), stroke = 0.3) +
-		scale_x_discrete(limits = c('Noronha', 'Rocas', 'Salvador', 'SPSPA', 'Principe', 'SC summer', 'SC winter', 'Bocas', 'Ascension')) +
-		xlab(label = NULL) +
-		ylab(label = 'Bites / min') +
-		theme(axis.text.x = element_text(colour = 'black', size = 12, angle = 0, vjust = 0.5, hjust = 0.5, face = 'plain'),
-			axis.text.y = element_text(colour = 'black', size = 12, angle = 0, vjust = 0.5, face = 'plain'),
-			panel.grid.minor = element_blank(), 
-			panel.background = element_rect(fill = NA, color = 'black'),
-			axis.title = element_text(size = 14, face = 'bold'),
-			axis.line = element_line(colour = 'black', size = 0.5, linetype = 'solid'),
-			strip.background.x = element_rect(color = 'black'),
-			strip.text.x = element_text(size = 12, angle = 0, face = 'bold'),
-			axis.ticks.x = element_line(size = 0.5, linetype = 'solid', color = 'black'),
-			axis.ticks.length = unit(0.1, 'cm'),
-			axis.ticks.y = element_line(size = 0.5, linetype = 'solid', color = 'black'),
-			legend.position = '') +
-		geom_errorbar(data = mean_bites, aes(x = local_original, ymax = mean + error, ymin = mean - error), width = 0, size = 1.2, color = 'black') +
-		geom_point(data = mean_bites, aes(x = local_original, y = mean), shape = 21, size = 2.5, colour = 'black', fill = 'white', stroke = 1.5)
+	a  <-  bites_fig_base(mass_ggplot, aes_vecs_a, my_ylab = substitute('Bite rate @ ' * z * degree * 'C', list(z = LoLinR::rounded(temp_from_invKT(invKT = mass_ggplot$output$invKT[1], bites_data$mean_temp_K[1]), 1))), my_xlab = 'Body mass (g)') +
+		   scale_x_continuous(breaks = 0:4, labels = LoLinR::rounded(exp(0:4), 1)) + 
+		   scale_y_continuous(breaks = 0:4, labels = LoLinR::rounded(exp(0:4), 1))
+	a  <-  a + 
+		   gg_relative_text(a, px = 0.03, py = 0.95, 'a', fontface = 'bold', size = 5) + 
+		   gg_relative_text(a, px = 0.03, py = 0.05, deparse(substitute('Bayesian ' * italic('R')^2 == z, list(z = r2))), fontface = 'bold', size = 4, hjust = 0, parse = TRUE) + 
+		   gg_relative_text(a, px = 0.95, py = 0.95, deparse(substitute(y == k %.% x^z, list(k = k_a, z = LoLinR::rounded(alpha, 2)))), fontface = 'bold', size = 4, hjust = 1, parse = TRUE)
+
+	b  <-  bites_fig_base(temp_ggplot, aes_vecs_b, my_ylab = paste0('Bite rate @ ', LoLinR::rounded(exp(temp_ggplot$output$ln_mass_g[1]), 1), ' g'), my_xlab = expression(paste('Temperature (' * degree, 'C)', sep = ''))) +
+		   scale_x_continuous(breaks = axis_labs_b, labels = temp_from_invKT(invKT = axis_labs_b, bites_data$mean_temp_K[1])) + 
+		   scale_y_continuous(breaks = 0:4, labels = LoLinR::rounded(exp(0:4), 1))
+	b  <-  b + 
+		   gg_relative_text(b, px = 0.03, py = 0.95, 'b', fontface = 'bold', size = 5) + 
+		   gg_relative_text(a, px = 0.05, py = 0.85, deparse(substitute(y == k %.% z %.% italic('f') * '(x)', list(k = k_b, z = LoLinR::rounded(Er, 2)))), fontface = 'bold', size = 4, hjust = 1, parse = TRUE)
+	grid.arrange(a, b, nrow = 1)
 }
 
 fig2_make  <-  function (dest, ...) {
-    ggplot2::ggsave(dest, fig2(...), device = 'pdf', width = 5, height = 5, units = 'in', onefile = FALSE, useDingbats = FALSE)
+    ggplot2::ggsave(dest, fig2(...), device = 'pdf', width = 6, height = 6, units = 'in', onefile = FALSE, useDingbats = FALSE)
 }
 
-fig2  <-  function (intestine_data) {
+fig2  <-  function (mouth_data, mouth_model) {
+	mouth_data  <-  mouth_data %>% mutate_at(vars(local, colors, shapes), unname) %>% dplyr::select(spp, local, mass_g, mouth_volume, colors, shapes)
+	coefs       <-  fixef(mouth_model)[, 'Estimate']
+	x_range     <-  seq(min(mouth_data$mass_g), max(mouth_data$mass_g), length.out = 30)
+	fit_d       <-  data.frame(x = x_range, y = exp(coefs[1]) * x_range ^ coefs[2])
+	r2          <-  brms::bayes_R2(mouth_model) %>% data.frame() %>% select(Estimate) %>% LoLinR::rounded(2)
 
-	intestine_data  <-  intestine_data %>% 
-							dplyr::mutate(local = as.factor(local),
-										  local = dplyr::recode(local, aspsp = 'SPSPA', atol_das_rocas = 'Rocas', bahia = 'Salvador', principe_island = 'Principe', santa_catarina = 'St Catarina', .default = levels(local))
-										 )
+	my_cols  <-  make_aes_vec(mouth_data, 'colors')
+	my_shps  <-  make_aes_vec(mouth_data, 'shapes')
 
-	mean_ints  <-  intestine_data %>% 
-						dplyr::group_by(local) %>% 
-						dplyr::summarise('mean' = mean(QI), 'error' = sd(QI) / sqrt(n())) %>%
-						as.data.frame()
-
-	ggplot(data = intestine_data) +
-		geom_hline(yintercept = c(1, 3), linetype = 'dashed') +
-		geom_boxplot(aes(x = local, y = QI), outlier.shape = NA, notch = FALSE) +
-		geom_jitter(aes(x = local, y = QI), fill = alpha(intestine_data$colors, 0.8), colour = intestine_data$colors,
-		                shape = intestine_data$shapes, size = 4, position = position_jitter(0.1, 0), stroke = 0.3) +
-		scale_x_discrete(limits = c('SPSPA', 'Rocas', 'Salvador', 'St Catarina', 'Principe')) +
-		scale_y_continuous(breaks = c(0, 1, 2, 3, 4), limits = c(0, 4)) +
-		xlab(label = NULL) +
-		ylab(label = 'Intestinal Coefficient') +
-		theme(axis.text.x = element_text(colour = 'black', size = 12, angle = 0, vjust = 0.5, hjust = 0.5, face = 'plain'),
-			  axis.text.y = element_text(colour = 'black', size = 12, angle = 0, vjust = 0.5, face = 'plain'),
-			  panel.grid.minor = element_blank(), 
-			  panel.background = element_rect(fill = NA, color = 'black'),
-			  axis.title = element_text(size = 14, face = 'bold'),
-			  axis.line = element_line(colour = 'black', size = 0.5, linetype = 'solid'),
-			  strip.background.x = element_rect(color = 'black'),
-			  strip.text.x = element_text(size = 12, angle = 0, face = 'bold'),
-			  axis.ticks.x = element_line(size = 0.5, linetype = 'solid', color = 'black'),
-			  axis.ticks.length = unit(0.1, 'cm'),
-			  axis.ticks.y = element_line(size = 0.5, linetype = 'solid', color = 'black'),
-			  legend.position = '') +
-	geom_errorbar(data = mean_ints, aes(x = local, ymax = mean + error, ymin = mean - error), width = 0, size = 1.2, color = 'black') +
-	geom_point(data = mean_ints, aes(x = local, y = mean), shape = 21, size = 3, colour = 'black', fill = 'white', stroke = 1.5)
+	g1  <-  ggplot() +
+				geom_point(data = mouth_data, mapping = aes(x = mass_g, y = mouth_volume, fill = local, colour = local, shape = local), size = 2.5, alpha = 0.8, show.legend = FALSE) +
+				geom_line(data = fit_d, mapping = aes(x = x, y = y), col = 'black', lty = 2, size = 0.5) +
+				scale_colour_manual(values = my_cols) +
+				scale_fill_manual(values = my_cols) +
+				scale_shape_manual(values = my_shps) +
+				xlab('Body mass (g)') +
+				ylab(substitute('Mouth volume (mm'^3 * ')')) +
+				my_theme()
+	g1 + 
+		gg_relative_text(g1, px = 0.03, py = 0.95, deparse(substitute(y == k %.% x^z, list(k = LoLinR::rounded(exp(coefs[1])), z = LoLinR::rounded(coefs[2], 2)))), fontface = 'bold', size = 5, hjust = 0, parse = TRUE) +
+		gg_relative_text(g1, px = 0.03, py = 0.85, deparse(substitute('Bayesian ' * italic('R')^2 == z, list(z = r2))), fontface = 'bold', size = 5, hjust = 0, parse = TRUE) 
 }
 
 fig3_make  <-  function (dest, ...) {
@@ -225,112 +212,42 @@ fig3  <-  function (gut_content_data, diet_data) {
 }
 
 fig4_make  <-  function (dest, ...) {
-    ggplot2::ggsave(dest, fig4(...), device = 'pdf', width = 8.8, height = 3.8, units = 'in', onefile = FALSE, useDingbats = FALSE)
+    ggplot2::ggsave(dest, fig4(...), device = 'pdf', width = 6, height = 6, units = 'in', onefile = FALSE, useDingbats = FALSE)
 }
 
-fig4  <-  function (bites_data, bites_model) {
-	fixefs       <-  fixef(bites_model)[, 'Estimate']
-	alpha        <-  fixefs['ln_mass_g']
-	Er           <-  fixefs['invKT']
-	b1           <-  fixefs['ln_obs_time']
-	lnB0         <-  fixefs['Intercept']
-	r2           <-  bayes_R2(bites_model) %>% data.frame() %>% select(Estimate) %>% LoLinR::rounded(2)
-	model_preds  <-  predict(bites_model)
-	for_figs     <-  brms::conditional_effects(bites_model, points = TRUE)
-	mass_ggplot  <-  model_ggplot_data_make(bites_data, for_figs, 'ln_mass_g')
-	aes_vecs_a   <-  aes_vec_list_create(c('colors', 'shapes'), data = mass_ggplot$points)
-	k_a          <-  mass_ggplot$output %>% filter(row_number() == 1) %>% summarise(lnB0 + ln_obs_time * b1 + invKT * Er) %>% unlist %>% unname %>% LoLinR::rounded(2)
-	temp_ggplot  <-  model_ggplot_data_make(bites_data, for_figs, 'invKT')
-	aes_vecs_b   <-  aes_vec_list_create(c('colors', 'shapes'), data = temp_ggplot$points)
-	k_b          <-  temp_ggplot$output %>% filter(row_number() == 1) %>% summarise(lnB0 + ln_obs_time * b1 + ln_mass_g * alpha) %>% unlist %>% unname %>% LoLinR::rounded(2)
-	axis_labs_b  <-  temp_to_invKT(seq(18, 30, 4), bites_data$mean_temp_K[1])
-
-	a  <-  bites_fig_base(mass_ggplot, aes_vecs_a, my_ylab = substitute('Bite rate @ ' * z * degree * 'C', list(z = LoLinR::rounded(temp_from_invKT(invKT = mass_ggplot$output$invKT[1], bites_data$mean_temp_K[1]), 1))), my_xlab = 'Body mass (g)') +
-		   scale_x_continuous(breaks = 0:4, labels = LoLinR::rounded(exp(0:4), 1)) + 
-		   scale_y_continuous(breaks = 0:4, labels = LoLinR::rounded(exp(0:4), 1))
-	a  <-  a + 
-		   gg_relative_text(a, px = 0.03, py = 0.95, 'a', fontface = 'bold', size = 5) + 
-		   gg_relative_text(a, px = 0.03, py = 0.05, deparse(substitute('Bayesian ' * italic('R')^2 == z, list(z = r2))), fontface = 'bold', size = 4, hjust = 0, parse = TRUE) + 
-		   gg_relative_text(a, px = 0.95, py = 0.95, deparse(substitute(y == k %.% x^z, list(k = k_a, z = LoLinR::rounded(alpha, 2)))), fontface = 'bold', size = 4, hjust = 1, parse = TRUE)
-
-	b  <-  bites_fig_base(temp_ggplot, aes_vecs_b, my_ylab = paste0('Bite rate @ ', LoLinR::rounded(exp(temp_ggplot$output$ln_mass_g[1]), 1), ' g'), my_xlab = expression(paste('Temperature (' * degree, 'C)', sep = ''))) +
-		   scale_x_continuous(breaks = axis_labs_b, labels = temp_from_invKT(invKT = axis_labs_b, bites_data$mean_temp_K[1])) + 
-		   scale_y_continuous(breaks = 0:4, labels = LoLinR::rounded(exp(0:4), 1))
-	b  <-  b + 
-		   gg_relative_text(b, px = 0.03, py = 0.95, 'b', fontface = 'bold', size = 5) + 
-		   gg_relative_text(a, px = 0.05, py = 0.85, deparse(substitute(y == k %.% z %.% italic('f') * '(x)', list(k = k_b, z = LoLinR::rounded(Er, 2)))), fontface = 'bold', size = 4, hjust = 1, parse = TRUE)
-	grid.arrange(a, b, nrow = 1)
-}
-
-fig5_make  <-  function (dest, ...) {
-    ggplot2::ggsave(dest, fig5(...), device = 'pdf', width = 6, height = 6, units = 'in', onefile = FALSE, useDingbats = FALSE)
-}
-
-fig5  <-  function (logratios_model, bites_model, diet_data) {
-	ratio_coefs         <-  exp(coef(logratios_model)$local[, 'Estimate', 'Intercept'])
+fig4  <-  function (logratios_model, bites_model, diet_data) {
+	ratio_coefs         <-  coef(logratios_model)$local[, 'Estimate', 'Intercept']
 	names(ratio_coefs)  <-  c('principe_island', 'atol_das_rocas', 'bahia', 'aspsp', 'santa_catarina')
-	bites_coefs        <-  exp(coef(bites_model)$local[, 'Estimate', 'Intercept'][names(ratio_coefs)])
+	bites_coefs        <-  coef(bites_model)$local[, 'Estimate', 'Intercept'][names(ratio_coefs)]
 
 	df  <-  data.frame(x = unname(ratio_coefs), y = unname(bites_coefs), shapes = diet_data$shapes[match(names(ratio_coefs), diet_data$local)], colors = diet_data$colors[match(names(ratio_coefs), diet_data$local)], local = names(ratio_coefs), stringsAsFactors = FALSE) %>% 
 			dplyr::mutate(local = dplyr::recode(local, aspsp = 'SPSPA', atol_das_rocas = 'Rocas', bahia = 'Salvador', principe_island = 'Principe', santa_catarina = 'St Catarina'))
-	lm_mod   <-  lm(bites_coefs ~ ratio_coefs)
 	cor_mod  <-  cor.test(ratio_coefs, bites_coefs)$estimate
-	coefs    <-  coef(summary(lm_mod))
-	fit_d    <-  data.frame(x = range(ratio_coefs), y = coefs[1, 1] + coefs[2, 1] * range(ratio_coefs))
 
 	g1  <-  ggplot(data = df, mapping = aes(x = x, y = y, fill = local, colour = local, shape = local, label = local)) +
 			geom_point(size = 4, alpha = 0.8, show.legend = FALSE) +
-			# geom_line(data = fit_d, mapping = aes(x = x, y = y), col = 'black', lty = 2, size = 0.5) +
 			scale_colour_manual(values = df$colors) +
 			scale_fill_manual(values = df$colors) +
 			scale_shape_manual(values = df$shapes) +
-			scale_x_continuous(limits = c(0.005, 0.021)) +
-			xlab('Normalised diet ratio') +
+			scale_x_continuous(limits = c(-5.15, -3.75)) +
+			xlab('Diet log-ratio') +
 			ylab('Normalised bite rate') +
 			my_theme() + 
-			geom_text(check_overlap = TRUE, hjust = 0, nudge_x = 0.0005, show.legend = FALSE, colour = 'black')
+			geom_text(check_overlap = TRUE, hjust = 0, nudge_x = 0.05, show.legend = FALSE, colour = 'black')
 	g1 + 
 		gg_relative_text(g1, px = 0.95, py = 0.95, deparse(substitute(italic('r') == a * ' (N.S.)', list(a = unname(round(cor_mod, 2))))), size = 4, hjust = 1, parse = TRUE)
 }
 
-figS1_make  <-  function (dest, ...) {
-    ggplot2::ggsave(dest, figS1(...), device = 'pdf', width = 6, height = 6, units = 'in', onefile = FALSE, useDingbats = FALSE)
-}
-
-figS1  <-  function (mouth_data, mouth_model) {
-	mouth_data  <-  mouth_data %>% mutate_at(vars(local, colors, shapes), unname) %>% dplyr::select(spp, local, mass_g, mouth_volume, colors, shapes)
-	coefs       <-  fixef(mouth_model)[, 'Estimate']
-	x_range     <-  seq(min(mouth_data$mass_g), max(mouth_data$mass_g), length.out = 30)
-	fit_d       <-  data.frame(x = x_range, y = exp(coefs[1]) * x_range ^ coefs[2])
-	r2          <-  brms::bayes_R2(mouth_model) %>% data.frame() %>% select(Estimate) %>% LoLinR::rounded(2)
-
-	my_cols  <-  make_aes_vec(mouth_data, 'colors')
-	my_shps  <-  make_aes_vec(mouth_data, 'shapes')
-
-	g1  <-  ggplot() +
-				geom_point(data = mouth_data, mapping = aes(x = mass_g, y = mouth_volume, fill = local, colour = local, shape = local), size = 2.5, alpha = 0.8, show.legend = FALSE) +
-				geom_line(data = fit_d, mapping = aes(x = x, y = y), col = 'black', lty = 2, size = 0.5) +
-				scale_colour_manual(values = my_cols) +
-				scale_fill_manual(values = my_cols) +
-				scale_shape_manual(values = my_shps) +
-				xlab('Body mass (g)') +
-				ylab(substitute('Mouth volume (mm'^3 * ')')) +
-				my_theme()
-	g1 + 
-		gg_relative_text(g1, px = 0.03, py = 0.95, deparse(substitute(y == k %.% x^z, list(k = LoLinR::rounded(exp(coefs[1])), z = LoLinR::rounded(coefs[2], 2)))), fontface = 'bold', size = 5, hjust = 0, parse = TRUE) +
-		gg_relative_text(g1, px = 0.03, py = 0.85, deparse(substitute('Bayesian ' * italic('R')^2 == z, list(z = r2))), fontface = 'bold', size = 5, hjust = 0, parse = TRUE) 
-}
-
-figS2_make  <-  function (dest, logratios = FALSE, ...) {
+figS1to3_make  <-  function (dest, logratios = FALSE, ...) {
     if (logratios) {
-		ggplot2::ggsave(dest, figS2(..., logratios = logratios), device = 'pdf', width = (14.37 / 4) * 3, height = 3.67, units = 'in', onefile = FALSE, useDingbats = FALSE)
+		ggplot2::ggsave(dest, figS1to3(..., logratios = logratios), device = 'pdf', width = (14.37 / 4) * 3, height = 3.67, units = 'in', onefile = FALSE, useDingbats = FALSE)
     } else {
-    	ggplot2::ggsave(dest, figS2(...), device = 'pdf', width = 14.37, height = 3.67, units = 'in', onefile = FALSE, useDingbats = FALSE)
+    	ggplot2::ggsave(dest, figS1to3(...), device = 'pdf', width = 14.37, height = 3.67, units = 'in', onefile = FALSE, useDingbats = FALSE)
     }
     
 }
 
-figS2  <-  function (data, model, x, logratios = FALSE) {
+figS1to3  <-  function (data, model, x, logratios = FALSE) {
 	# preamble
 	my_theme  <-  function () {
 		theme_bw() +
@@ -395,4 +312,83 @@ figS2  <-  function (data, model, x, logratios = FALSE) {
 				 gg_relative_text(p_d, px = 0.78, py = 0.855, 'Predicted', size = 3, hjust = 0)
 		grid.arrange(p_a, p_b, p_c, p_d, ncol = 4)
 	}	
+}
+
+figS4_make  <-  function (dest, ...) {
+    ggplot2::ggsave(dest, figS4(...), device = 'pdf', width = 10, height = 5, units = 'in', onefile = FALSE, useDingbats = FALSE)
+}
+
+figS4  <-  function (bites_data) {
+	bites_data  <-  bites_data %>% 
+						dplyr::mutate(bites_min = bites_original / obs_time, 
+									  local_original = as.factor(local_original),
+									  local_original = dplyr::recode(local_original, ascension_island = 'Ascension', aspsp = 'SPSPA', atol_das_rocas = 'Rocas', bahia = 'Salvador', bocas_del_toro = 'Bocas', fernando_de_noronha = 'Noronha', principe_island = 'Principe', santa_catarina.sum = 'SC summer', santa_catarina.win = 'SC winter', .default = levels(local_original))
+									 )
+	mean_bites  <-  bites_data %>% 
+						dplyr::group_by(local_original) %>% 
+						dplyr::summarise('mean' = mean(bites_min), 'error' = sd(bites_min) / sqrt(n())) %>%
+						as.data.frame()
+
+	ggplot(data = bites_data) +
+		geom_boxplot(aes(x = local_original, y = bites_min), outlier.shape = NA, notch = TRUE) +
+		geom_jitter(aes(x = local_original, y = bites_min), fill = alpha(bites_data$colors, 0.8), colour = bites_data$colors,
+	                        shape = bites_data$shapes, size = 4, position = position_jitter(0.1, 0), stroke = 0.3) +
+		scale_x_discrete(limits = c('Noronha', 'Rocas', 'Salvador', 'SPSPA', 'Principe', 'SC summer', 'SC winter', 'Bocas', 'Ascension')) +
+		xlab(label = NULL) +
+		ylab(label = 'Bites / min') +
+		theme(axis.text.x = element_text(colour = 'black', size = 12, angle = 0, vjust = 0.5, hjust = 0.5, face = 'plain'),
+			axis.text.y = element_text(colour = 'black', size = 12, angle = 0, vjust = 0.5, face = 'plain'),
+			panel.grid.minor = element_blank(), 
+			panel.background = element_rect(fill = NA, color = 'black'),
+			axis.title = element_text(size = 14, face = 'bold'),
+			axis.line = element_line(colour = 'black', size = 0.5, linetype = 'solid'),
+			strip.background.x = element_rect(color = 'black'),
+			strip.text.x = element_text(size = 12, angle = 0, face = 'bold'),
+			axis.ticks.x = element_line(size = 0.5, linetype = 'solid', color = 'black'),
+			axis.ticks.length = unit(0.1, 'cm'),
+			axis.ticks.y = element_line(size = 0.5, linetype = 'solid', color = 'black'),
+			legend.position = '') +
+		geom_errorbar(data = mean_bites, aes(x = local_original, ymax = mean + error, ymin = mean - error), width = 0, size = 1.2, color = 'black') +
+		geom_point(data = mean_bites, aes(x = local_original, y = mean), shape = 21, size = 2.5, colour = 'black', fill = 'white', stroke = 1.5)
+}
+
+figS5_make  <-  function (dest, ...) {
+    ggplot2::ggsave(dest, figS5(...), device = 'pdf', width = 5, height = 5, units = 'in', onefile = FALSE, useDingbats = FALSE)
+}
+
+figS5  <-  function (intestine_data) {
+
+	intestine_data  <-  intestine_data %>% 
+							dplyr::mutate(local = as.factor(local),
+										  local = dplyr::recode(local, aspsp = 'SPSPA', atol_das_rocas = 'Rocas', bahia = 'Salvador', principe_island = 'Principe', santa_catarina = 'St Catarina', .default = levels(local))
+										 )
+
+	mean_ints  <-  intestine_data %>% 
+						dplyr::group_by(local) %>% 
+						dplyr::summarise('mean' = mean(QI), 'error' = sd(QI) / sqrt(n())) %>%
+						as.data.frame()
+
+	ggplot(data = intestine_data) +
+		geom_hline(yintercept = c(1, 3), linetype = 'dashed') +
+		geom_boxplot(aes(x = local, y = QI), outlier.shape = NA, notch = FALSE) +
+		geom_jitter(aes(x = local, y = QI), fill = alpha(intestine_data$colors, 0.8), colour = intestine_data$colors,
+		                shape = intestine_data$shapes, size = 4, position = position_jitter(0.1, 0), stroke = 0.3) +
+		scale_x_discrete(limits = c('SPSPA', 'Rocas', 'Salvador', 'St Catarina', 'Principe')) +
+		scale_y_continuous(breaks = c(0, 1, 2, 3, 4), limits = c(0, 4)) +
+		xlab(label = NULL) +
+		ylab(label = 'Intestinal Coefficient') +
+		theme(axis.text.x = element_text(colour = 'black', size = 12, angle = 0, vjust = 0.5, hjust = 0.5, face = 'plain'),
+			  axis.text.y = element_text(colour = 'black', size = 12, angle = 0, vjust = 0.5, face = 'plain'),
+			  panel.grid.minor = element_blank(), 
+			  panel.background = element_rect(fill = NA, color = 'black'),
+			  axis.title = element_text(size = 14, face = 'bold'),
+			  axis.line = element_line(colour = 'black', size = 0.5, linetype = 'solid'),
+			  strip.background.x = element_rect(color = 'black'),
+			  strip.text.x = element_text(size = 12, angle = 0, face = 'bold'),
+			  axis.ticks.x = element_line(size = 0.5, linetype = 'solid', color = 'black'),
+			  axis.ticks.length = unit(0.1, 'cm'),
+			  axis.ticks.y = element_line(size = 0.5, linetype = 'solid', color = 'black'),
+			  legend.position = '') +
+	geom_errorbar(data = mean_ints, aes(x = local, ymax = mean + error, ymin = mean - error), width = 0, size = 1.2, color = 'black') +
+	geom_point(data = mean_ints, aes(x = local, y = mean), shape = 21, size = 3, colour = 'black', fill = 'white', stroke = 1.5)
 }
