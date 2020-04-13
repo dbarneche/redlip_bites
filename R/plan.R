@@ -57,5 +57,19 @@ plan  <-  drake::drake_plan(
 		fig_out_folder
 		figS5_make(file_out('output/figures/figS5.pdf'), intestine_data)
 	},
-    figS5_png = pngs_generate(file_in('output/figures/figS5.pdf'), file_out('output/figures/figS5.png'))
+    figS5_png = pngs_generate(file_in('output/figures/figS5.pdf'), file_out('output/figures/figS5.png')),
+    # Tables -----------------------------------------------
+    tab_out_folder = dir.create('output/tables/', recursive = TRUE, showWarnings = FALSE),
+	tableS1 = {
+		tab_out_folder
+		make_S_table(file_out('output/tables/tableS1.csv'), bites_model$best)
+	},
+	tableS2 = {
+		tab_out_folder
+		make_S_table(file_out('output/tables/tableS2.csv'), mouth_model)
+	},
+	tableS3 = {
+		tab_out_folder
+		make_S_table(file_out('output/tables/tableS3.csv'), logratios_model$best)
+	}
 )

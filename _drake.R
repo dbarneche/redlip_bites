@@ -10,6 +10,7 @@
 source('R/packages.R') # Loads packages, e.g. library(drake).
 source('R/analyses.R') # Defines custom analysis code as a bunch of functions.
 source('R/figures.R')  # Defines custom figures code as a bunch of functions.
+source('R/tables.R')   # Defines custom tables code as a bunch of functions.
 source('R/plan.R')     # Creates drake plan.
 
 # _drake.R must end with a call to drake_config().
