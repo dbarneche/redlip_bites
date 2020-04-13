@@ -24,9 +24,8 @@ bite_data_make  <-  function (cols, shps, ...) {
     data    <-   file_read(...) %>%
                  dplyr::filter(!(site %in% c('tide_pool', 'ancoras')), bites_original > 0) %>% # remove bad data
                  dplyr::mutate(temp_K = temperature + 273.15) # temperature converted to kelvin
-    temps_K  <-  unique(data[, c('site', 'temp_K')])$temp_K # temperature is originally in Celsius
     data %>%
-    dplyr::mutate(mean_temp_K = mean(temps_K),       
+    dplyr::mutate(mean_temp_K = mean(temp_K),       
                   invKT = 1 / 8.62e-5 * (1 / mean_temp_K - 1 / temp_K), # Boltzmann relationship
                   mass_g = mass_calculate(size), 
                   ln_mass_g = log(mass_g), # log individual mass in grams

@@ -121,7 +121,7 @@ fig1  <-  function (bites_data, bites_model) {
 		   scale_y_continuous(breaks = 0:4, labels = LoLinR::rounded(exp(0:4), 1))
 	b  <-  b + 
 		   gg_relative_text(b, px = 0.03, py = 0.95, 'b', fontface = 'bold', size = 5) + 
-		   gg_relative_text(a, px = 0.05, py = 0.85, deparse(substitute(y == k %.% z %.% italic('f') * '(x)', list(k = k_b, z = LoLinR::rounded(Er, 2)))), fontface = 'bold', size = 4, hjust = 1, parse = TRUE)
+		   gg_relative_text(a, px = 0.02, py = 0.85, deparse(substitute(y == k %.% z %.% italic('f') * '(x)', list(k = k_b, z = LoLinR::rounded(Er, 2)))), fontface = 'bold', size = 4, hjust = 1, parse = TRUE)
 	grid.arrange(a, b, nrow = 1)
 }
 
@@ -231,7 +231,7 @@ fig4  <-  function (logratios_model, bites_model, diet_data) {
 			scale_shape_manual(values = df$shapes) +
 			scale_x_continuous(limits = c(-5.15, -3.75)) +
 			xlab('Diet log-ratio') +
-			ylab('Normalised bite rate') +
+			ylab('Normalised bite rate (natural log)') +
 			my_theme() + 
 			geom_text(check_overlap = TRUE, hjust = 0, nudge_x = 0.05, show.legend = FALSE, colour = 'black')
 	g1 + 
