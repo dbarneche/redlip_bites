@@ -1,13 +1,13 @@
 table1_make  <-  function (dest, bites_data, diet_data, intestine_data) {
 	x  <-  bites_data %>% 
-		   group_by(local) %>%
-		   summarise(sp = unique(spp), depth = max(depth), temp = mean(temperature), bite = n())
+		   dplyr::group_by(local) %>%
+		   dplyr::summarise(sp = unique(spp), depth = max(depth), temp = mean(temperature), bite = n())
 	y  <-  diet_data %>%
-		   group_by(local) %>%
-		   summarise(diet = n())
+		   dplyr::group_by(local) %>%
+		   dplyr::summarise(diet = n())
 	z  <-  intestine_data %>%
-	       group_by(local) %>%
-	       summarise(intestine = n())
+	       dplyr::group_by(local) %>%
+	       dplyr::summarise(intestine = n())
 	table1  <-  dplyr::left_join(dplyr::left_join(x, y), z)
 	write.csv(table1, dest, row.names = TRUE)
 	table1
