@@ -60,16 +60,20 @@ plan  <-  drake::drake_plan(
     figS5_png = pngs_generate(file_in('output/figures/figS5.pdf'), file_out('output/figures/figS5.png')),
     # Tables -----------------------------------------------
     tab_out_folder = dir.create('output/tables/', recursive = TRUE, showWarnings = FALSE),
+	table1 = {
+		tab_out_folder
+		table1_make(file_out('output/tables/table1.csv'), bites_data, diet_data, intestine_data)
+	},
 	tableS1 = {
 		tab_out_folder
-		make_S_table(file_out('output/tables/tableS1.csv'), bites_model$best)
+		soi_table_make(file_out('output/tables/tableS1.csv'), bites_model$best)
 	},
 	tableS2 = {
 		tab_out_folder
-		make_S_table(file_out('output/tables/tableS2.csv'), mouth_model)
+		soi_table_make(file_out('output/tables/tableS2.csv'), mouth_model)
 	},
 	tableS3 = {
 		tab_out_folder
-		make_S_table(file_out('output/tables/tableS3.csv'), logratios_model$best)
+		soi_table_make(file_out('output/tables/tableS3.csv'), logratios_model$best)
 	}
 )
