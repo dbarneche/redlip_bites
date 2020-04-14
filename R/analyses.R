@@ -51,6 +51,9 @@ mouth_data_make  <-  function (cols, shps, ...) {
 }
 
 diet_data_make  <-  function (cols, shps, bites_data, ...) {
+    new_temp    <-  bites_data %>%
+                    dplyr::group_by(local) %>%
+                    dplyr::summarise(mean_temp = mean(temperature))
     locals_str  <-  c('principe' = 'principe_island', 'rocas_atoll' = 'atol_das_rocas', 'salvador' = 'bahia', 'sc' = 'santa_catarina', 'spspa' = 'aspsp')
     file_read(..., na.strings = c('', 'na'), sep = ';', dec = ',') %>%
     dplyr::filter(!is.na(total)) %>%
@@ -58,6 +61,7 @@ diet_data_make  <-  function (cols, shps, bites_data, ...) {
                   spp = gsub('sp1', 'spST', spp),
                   colors = cols[spp],
                   shapes = shps[spp],
+                  mean_temp = new_temp$mean_temp[match(local, new_temp$local)],
                   temp_K = mean_temp + 273.15, # temperature converted to kelvin
                   invKT = 1 / 8.62e-5 * (1 / unique(bites_data$mean_temp_K) - 1 / temp_K), # use same standardising temperature as bites data
                   mass_g = mass_calculate((TL_mm / 10)),
