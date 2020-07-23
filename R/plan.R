@@ -14,6 +14,7 @@ plan  <-  drake::drake_plan(
   diet_data = make_diet_data(cols, shps, bites_data,
                              file_name = file_in("data/diet_data.csv")),
   gut_content_data = make_gut_content_data(diet_data),
+  id_data = make_id_data(gut_content_data),
   logratios_data = make_logratios_data(diet_data, bites_data, gut_content_data),
   intest_data = make_intestine_data(cols, shps,
                                     file_name = file_in("data/diet_data.csv")),
@@ -24,7 +25,11 @@ plan  <-  drake::drake_plan(
   logratios_model = run_logratios_model(logratios_data),
   intestine_model = intest_data %>%
     stats::kruskal.test(local ~ QI, data = .),
-  ms_numbers = make_ms_numbers(bites_data),
+  correlation_data = make_correlation_data(diet_data, bites_model$best,
+                                           logratios_model$best),
+  logratios_correlation = run_logratios_correlation(correlation_data),
+  ms_numbers = make_ms_numbers(bites_data, bites_model$best,
+                               mouth_model, id_data, logratios_model$best),
 
   # Figures ----------------------------------------------
   fig_out_folder = dir.create(file_out("output/figures/"),
@@ -46,14 +51,14 @@ plan  <-  drake::drake_plan(
   fig_3_pdf = {
     fig_out_folder
     make_fig_3(file_out("output/figures/fig_3.pdf"),
-               gut_content_data, diet_data)
+               gut_content_data, diet_data, id_data)
   },
   fig_3_png = make_png(file_in("output/figures/fig_3.pdf"),
                        file_out("output/figures/fig_3.png")),
   fig_4_pdf = {
     fig_out_folder
     make_fig_4(file_out("output/figures/fig_4.pdf"),
-               logratios_model$best, bites_model$best, diet_data)
+               correlation_data, logratios_correlation$estimate)
   },
   fig_4_png = make_png(file_in("output/figures/fig_4.pdf"),
                        file_out("output/figures/fig_4.png")),

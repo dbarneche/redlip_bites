@@ -135,6 +135,30 @@ make_gut_content_data <- function(diet_data) {
                                        .default = levels(item)))
 }
 
+make_id_data <- function(gut_content_data) {
+  gut_content_data <- gut_content_data %>%
+    dplyr::filter(item != "Total") %>%
+    droplevels
+  mean_cont <- gut_content_data %>%
+    dplyr::group_by(local, item) %>%
+    dplyr::summarise("mean" = mean(vol_per),
+                     "error" = sd(vol_per) / sqrt(dplyr::n())) %>%
+    as.data.frame %>%
+    dplyr::filter(mean > 0)
+  gut_content_data %>%
+    dplyr::group_by(local, item) %>%
+    dplyr::summarise(numb_stomach = sum(vol_per > 0),
+                     occurrence = numb_stomach / dplyr::n() * 100,
+                     vol_mm = sum(vol_mm)) %>%
+    dplyr::group_by(local) %>%
+    dplyr::mutate(vol_per = vol_mm / sum(vol_mm) * 100,
+                  V_x_F = occurrence * vol_per,
+                  iai = V_x_F / sum(V_x_F),
+                  iai_per = iai * 100) %>%
+    as.data.frame %>%
+    dplyr::filter(iai_per > 0)
+}
+
 make_logratios_data <- function(diet_data, bites_data, gut_content_data) {
   match_data <- diet_data  %>%
     dplyr::mutate(local = dplyr::recode(local,
@@ -178,6 +202,28 @@ make_intestine_data <- function(cols, shps, ...) {
                   spp = gsub("sp1", "spST", spp),
                   colors = cols[spp],
                   shapes = shps[spp])
+}
+
+make_correlation_data <- function(diet_data, bites_model, logratios_model) {
+  ratio_coefs <- coef(logratios_model)$local[, "Estimate", "Intercept"]
+  names(ratio_coefs) <- c("principe_island", "atol_das_rocas",
+                          "bahia", "aspsp", "santa_catarina")
+  bites_coefs <- coef(bites_model)$local %>%
+    .[, "Estimate", "Intercept"] %>%
+    .[names(ratio_coefs)]
+  data.frame(x = unname(ratio_coefs),
+             y = unname(bites_coefs),
+             shapes = diet_data$shapes[match(names(ratio_coefs),
+                                             diet_data$local)],
+             colors = diet_data$colors[match(names(ratio_coefs),
+                                             diet_data$local)],
+             local = names(ratio_coefs),
+             stringsAsFactors = FALSE) %>%
+    dplyr::mutate(local = dplyr::recode(local, aspsp = "SPSPA",
+                                        atol_das_rocas = "Rocas",
+                                        bahia = "Salvador",
+                                        principe_island = "Principe",
+                                        santa_catarina = "St Catarina"))
 }
 
 ########
@@ -256,8 +302,13 @@ run_logratios_model <- function(data) {
   run_model_comparison(full, nest)
 }
 
-make_ms_numbers <- function(data) {
-  rocas <- data %>%
+run_logratios_correlation <- function(correlation_data) {
+  cor.test(correlation_data$x, correlation_data$y)
+}
+
+make_ms_numbers <- function(bites_data, bites_model, mouth_model,
+                            id_data, logratios_model) {
+  rocas <- bites_data %>%
     dplyr::filter(local == "atol_das_rocas")
   temp_1 <- 30
   mass_1 <- mean(rocas$mass_g)
@@ -267,6 +318,21 @@ make_ms_numbers <- function(data) {
          bite_rate(mass_1, temp_1),
        cons_fold_change = consumption_rate(mass_2, temp_2) /
          consumption_rate(mass_1, temp_1),
-       range_temp = range(data$temperature),
-       range_mass = range(data$mass_g))
+       range_temp = range(bites_data$temperature),
+       range_mass = range(bites_data$mass_g),
+       bites_model_r2 = brms::bayes_R2(bites_model),
+       bites_model_ranef = summary(bites_model)$random$local,
+       bites_model_fixef = brms::fixef(bites_model),
+       mouth_model_r2 = brms::bayes_R2(mouth_model),
+       mouth_model_fixef = brms::fixef(mouth_model),
+       logratios_model_r2 = brms::bayes_R2(logratios_model),
+       logratios_model_ranef = summary(logratios_model)$random$local,
+       logratios_model_fixef = brms::fixef(logratios_model),
+       id_stats = {
+         id_data %>%
+         dplyr::group_by(item) %>%
+         dplyr::summarise(mean = LoLinR::rounded(mean(iai_per), 2),
+                          min = LoLinR::rounded(min(iai_per), 2),
+                          max = LoLinR::rounded(max(iai_per), 2))
+       })
 }

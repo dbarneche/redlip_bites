@@ -270,7 +270,7 @@ make_fig_3 <- function(dest, ...) {
                   useDingbats = FALSE)
 }
 
-fig_3 <- function(gut_content_data, diet_data) {
+fig_3 <- function(gut_content_data, diet_data, id_data) {
   gut_content_data <- gut_content_data %>%
     dplyr::filter(item != "Total") %>%
     droplevels
@@ -280,18 +280,6 @@ fig_3 <- function(gut_content_data, diet_data) {
                      "error" = sd(vol_per) / sqrt(dplyr::n())) %>%
     as.data.frame %>%
     dplyr::filter(mean > 0)
-  iai <- gut_content_data %>%
-    dplyr::group_by(local, item) %>%
-    dplyr::summarise(numb_stomach = sum(vol_per > 0),
-                     occurrence = numb_stomach / dplyr::n() * 100,
-                     vol_mm = sum(vol_mm)) %>%
-    dplyr::group_by(local) %>%
-    dplyr::mutate(vol_per = vol_mm / sum(vol_mm) * 100,
-                  V_x_F = occurrence * vol_per,
-                  iai = V_x_F / sum(V_x_F),
-                  iai_per = iai * 100) %>%
-    as.data.frame %>%
-    dplyr::filter(iai_per > 0)
   gut_content_data <- left_join(gut_content_data, {
     diet_data %>%
       dplyr::select(spp, colors, shapes) %>%
@@ -356,7 +344,7 @@ fig_3 <- function(gut_content_data, diet_data) {
                shape = 21, size = 2,
                colour = "black",
                fill = "white", stroke = 1.5) +
-    geom_point(data = iai,
+    geom_point(data = id_data,
                mapping = aes(x = iai_per, y = item),
                shape = 18, size = 3,
                colour = "black",
@@ -369,35 +357,15 @@ make_fig_4 <- function(dest, ...) {
                   useDingbats = FALSE)
 }
 
-fig_4 <- function(logratios_model, bites_model, diet_data) {
-  ratio_coefs <- coef(logratios_model)$local[, "Estimate", "Intercept"]
-  names(ratio_coefs) <- c("principe_island", "atol_das_rocas",
-                          "bahia", "aspsp", "santa_catarina")
-  bites_coefs <- coef(bites_model)$local %>%
-    .[, "Estimate", "Intercept"] %>%
-    .[names(ratio_coefs)]
-  df <- data.frame(x = unname(ratio_coefs),
-                   y = unname(bites_coefs),
-                   shapes = diet_data$shapes[match(names(ratio_coefs),
-                                                   diet_data$local)],
-                   colors = diet_data$colors[match(names(ratio_coefs),
-                                                   diet_data$local)],
-                   local = names(ratio_coefs),
-                   stringsAsFactors = FALSE) %>%
-    dplyr::mutate(local = dplyr::recode(local, aspsp = "SPSPA",
-                                        atol_das_rocas = "Rocas",
-                                        bahia = "Salvador",
-                                        principe_island = "Principe",
-                                        santa_catarina = "St Catarina"))
-  cor_mod <- cor.test(ratio_coefs, bites_coefs)$estimate
-  g1 <- ggplot(data = df,
+fig_4 <- function(correlation_data, logratios_correlation) {
+  g1 <- ggplot(data = correlation_data,
                mapping = aes(x = x, y = y, fill = local,
                              colour = local, shape = local,
                              label = local)) +
     geom_point(size = 4, alpha = 0.8, show.legend = FALSE) +
-    scale_colour_manual(values = df$colors) +
-    scale_fill_manual(values = df$colors) +
-    scale_shape_manual(values = df$shapes) +
+    scale_colour_manual(values = correlation_data$colors) +
+    scale_fill_manual(values = correlation_data$colors) +
+    scale_shape_manual(values = correlation_data$shapes) +
     scale_x_continuous(limits = c(-5.15, -3.75)) +
     xlab("Diet log-ratio") +
     ylab("Normalised bite rate (natural log)") +
@@ -406,7 +374,8 @@ fig_4 <- function(logratios_model, bites_model, diet_data) {
               nudge_x = 0.05, show.legend = FALSE,
               colour = "black")
   my_lab <- deparse(substitute(italic("r") == a * " (N.S.)",
-                               list(a = unname(round(cor_mod, 2)))))
+                               list(a = unname(round(logratios_correlation,
+                                                     2)))))
   g1 +
     gg_relative_text(g1, px = 0.95, py = 0.95,
                      my_lab, size = 4, hjust = 1,
