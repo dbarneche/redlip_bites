@@ -153,6 +153,7 @@ fig_1 <- function(bites_data, bites_model) {
     dplyr::summarise(ln_b0 + ln_obs_time * b1 + inv_kt * er) %>%
     unlist %>%
     unname %>%
+    exp %>%
     LoLinR::rounded(2)
   temp_ggplot <- make_model_ggplot_data(bites_data, for_figs, "inv_kt")
   aes_vecs_b <- aes_vec_list_create(c("colors", "shapes"),
@@ -162,6 +163,7 @@ fig_1 <- function(bites_data, bites_model) {
     dplyr::summarise(ln_b0 + ln_obs_time * b1 + ln_mass_g * alpha) %>%
     unlist %>%
     unname %>%
+    exp %>%
     LoLinR::rounded(2)
   axis_labs_b <- temp_to_inv_kt(seq(18, 30, 4), bites_data$mean_temp_k[1])
   z <- temp_from_inv_kt(inv_kt = mass_ggplot$output$inv_kt[1],
@@ -198,8 +200,12 @@ fig_1 <- function(bites_data, bites_model) {
                        labels = temp_from_inv_kt(inv_kt = axis_labs_b,
                                                  bites_data$mean_temp_k[1])) +
     scale_y_continuous(breaks = 0:4, labels = LoLinR::rounded(exp(0:4), 1))
-  my_lab <- deparse(substitute(y == k %.% z %.% italic("f") * "(x)",
-                               list(k = k_b, z = LoLinR::rounded(er, 2))))
+    my_lab <- deparse(substitute(y == k %.% italic("e") ^ z,
+                                   list(k = k_b,
+                                        z = substitute(a %.%
+                                                         italic("f") *
+                                                           "(x)",
+                                                       list(a = LoLinR::rounded(er, 2))))))
   b <- b +
     gg_relative_text(b, px = 0.03, py = 0.95, "b",
                      fontface = "bold", size = 5) +
