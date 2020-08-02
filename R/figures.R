@@ -200,12 +200,11 @@ fig_1 <- function(bites_data, bites_model) {
                        labels = temp_from_inv_kt(inv_kt = axis_labs_b,
                                                  bites_data$mean_temp_k[1])) +
     scale_y_continuous(breaks = 0:4, labels = LoLinR::rounded(exp(0:4), 1))
-    my_lab <- deparse(substitute(y == k %.% italic("e") ^ z,
-                                   list(k = k_b,
-                                        z = substitute(a %.%
-                                                         italic("f") *
-                                                           "(x)",
-                                                       list(a = LoLinR::rounded(er, 2))))))
+    z_lab <- substitute(a %.% italic("f") * "(x)",
+                        list(a = LoLinR::rounded(er, 2)))
+    my_lab <- substitute(y == k %.% italic("e") ^ {z},
+                         list(k = k_b, z = z_lab))
+    my_lab <- paste0(deparse(my_lab), collapse = "")
   b <- b +
     gg_relative_text(b, px = 0.03, py = 0.95, "b",
                      fontface = "bold", size = 5) +
