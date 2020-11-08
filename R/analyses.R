@@ -243,15 +243,16 @@ run_model_comparison <- function(full_model, nested_model) {
 }
 
 run_bites_model <- function(data) {
+  my_priors <- prior_string("normal(0, 1)", "b") +
+                 prior_string("normal(0, 1)", "Intercept") +
+                 prior_string("gamma(2, 0.1)", "sd") +
+                 prior_string("gamma(2, 0.1)", "sigma")
   set.seed(10)
   full <- brms::brm(ln_bite_rates ~ ln_obs_time +
                       ln_mass_g + inv_kt + (1 + ln_mass_g | local),
                     data = data,
                     family = gaussian(),
-                    prior = c(prior(normal(1, 2), "b"),
-                              prior(normal(3, 3), "Intercept"),
-                              prior(cauchy(0, 5), "sd"),
-                              prior(cauchy(0, 5), "sigma")),
+                    prior = my_priors,
                     sample_prior = TRUE, chains = 4, cores = 4,
                     iter = 5e3, warmup = 2.5e3,
                     control = list(adapt_delta = 0.99,
@@ -261,10 +262,7 @@ run_bites_model <- function(data) {
                       inv_kt + (1 | local),
                     data = data,
                     family = gaussian(),
-                    prior = c(prior(normal(1, 2), "b"),
-                              prior(normal(3, 3), "Intercept"),
-                              prior(cauchy(0, 5), "sd"),
-                              prior(cauchy(0, 5), "sigma")),
+                    prior = my_priors,
                     sample_prior = TRUE, chains = 4, cores = 4,
                     iter = 5e3, warmup = 2.5e3,
                     control = list(adapt_delta = 0.99,
@@ -274,9 +272,13 @@ run_bites_model <- function(data) {
 
 run_mouth_model <- function(data) {
   set.seed(10)
+  my_priors <- prior_string("normal(0, 1)", "b") +
+                 prior_string("normal(0, 1)", "Intercept") +
+                 prior_string("gamma(2, 0.1)", "sigma")
   brms::brm(ln_vol_mm3 ~ ln_mass_g, data = data,
             family = gaussian(), sample_prior = TRUE,
-            chains = 4, cores = 4, iter = 5e3, warmup = 2.5e3)
+            prior = my_priors, chains = 4, cores = 4,
+            iter = 5e3, warmup = 2.5e3)
 }
 
 run_logratios_model <- function(data) {
