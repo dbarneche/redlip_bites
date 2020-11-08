@@ -144,13 +144,87 @@ make_aes_vec <- function(data, col) {
 ###############
 # PAPER FIGURES
 ###############
-make_fig_1 <- function(dest, ...) {
-  ggplot2::ggsave(dest, fig_1(...), device = "pdf", width = 8.8,
-                  height = 3.8, units = "in", onefile = FALSE,
+make_fig_2 <- function(dest, ...) {
+  ggplot2::ggsave(dest, fig_2(...), device = "pdf", width = 8.8,
+                  height = 7, units = "in", onefile = FALSE,
                   useDingbats = FALSE)
 }
 
-fig_1 <- function(bites_data, bites_model) {
+fig_2 <- function(bites_data, bites_model) {
+  bdata <- bites_data %>%
+    dplyr::mutate(bites_min = bites_original / obs_time,
+                  local_original = as.factor(local_original),
+                  local_original = dplyr::recode(local_original,
+                                                 ascension_island = "Ascension",
+                                                 aspsp = "SPSPA",
+                                                 atol_das_rocas = "Rocas",
+                                                 bahia = "Salvador",
+                                                 bocas_del_toro = "Bocas",
+                                                 fernando_de_noronha = "Noronha",
+                                                 principe_island = "Principe",
+                                                 santa_catarina.sum = "SC summer",
+                                                 santa_catarina.win = "SC winter",
+                                                 .default = levels(local_original)))
+  mean_bites <- bdata %>%
+    dplyr::group_by(local_original) %>%
+    dplyr::summarise("mean" = mean(bites_min),
+                     "error" = sd(bites_min) / sqrt(dplyr::n())) %>%
+    as.data.frame()
+
+  f2a <- ggplot(data = bdata) +
+    geom_boxplot(mapping = aes(x = local_original,
+                               y = bites_min),
+                 outlier.shape = NA,
+                 notch = TRUE) +
+    geom_jitter(mapping = aes(x = local_original,
+                              y = bites_min),
+                fill = alpha(bdata$colors, 0.8),
+                colour = bdata$colors,
+                shape = bdata$shapes,
+                size = 4,
+                position = position_jitter(0.1, 0),
+                stroke = 0.3) +
+    scale_x_discrete(limits = c("Noronha", "Rocas", "Salvador",
+                                "SPSPA", "Principe", "SC summer",
+                                "SC winter", "Bocas", "Ascension")) +
+    xlab(label = NULL) +
+    ylab(label = "Bites / min") +
+    theme(axis.text.x = element_text(colour = "black",
+                                     size = 12, angle = 0,
+                                     vjust = 0.5, hjust = 0.5,
+                                     face = "plain"),
+          axis.text.y = element_text(colour = "black",
+                                     size = 12, angle = 0,
+                                     vjust = 0.5, face = "plain"),
+          panel.grid.minor = element_blank(),
+          panel.background = element_rect(fill = NA, color = "black"),
+          axis.title = element_text(size = 14, face = "bold"),
+          axis.line = element_line(colour = "black", size = 0.5,
+                                   linetype = "solid"),
+          strip.background.x = element_rect(color = "black"),
+          strip.text.x = element_text(size = 12, angle = 0, face = "bold"),
+          axis.ticks.x = element_line(size = 0.5, linetype = "solid",
+                                      color = "black"),
+          axis.ticks.length = unit(0.1, "cm"),
+          axis.ticks.y = element_line(size = 0.5, linetype = "solid",
+                                      color = "black"),
+          legend.position = "") +
+    geom_errorbar(data = mean_bites,
+                  mapping = aes(x = local_original,
+                                ymax = mean + error,
+                                ymin = mean - error),
+                  width = 0, size = 1.2,
+                  color = "black") +
+    geom_point(data = mean_bites,
+               mapping = aes(x = local_original, y = mean),
+               shape = 21, size = 2.5,
+               colour = "black",
+               fill = "white",
+               stroke = 1.5)
+  f2a <- f2a +
+    gg_relative_text(f2a, px = 0.03, py = 0.95,
+                     "a", fontface = "bold", size = 5)
+
   fixefs <- brms::fixef(bites_model)[, "Estimate"]
   alpha <- fixefs["ln_mass_g"]
   er <- fixefs["inv_kt"]
@@ -164,7 +238,7 @@ fig_1 <- function(bites_data, bites_model) {
   mass_ggplot <- make_model_ggplot_data(bites_data, for_figs, "ln_mass_g")
   aes_vecs_a <- aes_vec_list_create(c("colors", "shapes"),
                                     data = mass_ggplot$points)
-  k_a <- mass_ggplot$output %>%
+  k_b <- mass_ggplot$output %>%
     dplyr::filter(row_number() == 1) %>%
     dplyr::summarise(ln_b0 + ln_obs_time * b1 + inv_kt * er) %>%
     unlist %>%
@@ -174,7 +248,7 @@ fig_1 <- function(bites_data, bites_model) {
   temp_ggplot <- make_model_ggplot_data(bites_data, for_figs, "inv_kt")
   aes_vecs_b <- aes_vec_list_create(c("colors", "shapes"),
                                     data = temp_ggplot$points)
-  k_b <- temp_ggplot$output %>%
+  k_c <- temp_ggplot$output %>%
     dplyr::filter(row_number() == 1) %>%
     dplyr::summarise(ln_b0 + ln_obs_time * b1 + ln_mass_g * alpha) %>%
     unlist %>%
@@ -185,23 +259,23 @@ fig_1 <- function(bites_data, bites_model) {
   z <- temp_from_inv_kt(inv_kt = mass_ggplot$output$inv_kt[1],
                         bites_data$mean_temp_k[1]) %>%
     LoLinR::rounded(1)
-  a <- bites_fig_base(mass_ggplot, aes_vecs_a,
+  f2b <- bites_fig_base(mass_ggplot, aes_vecs_a,
                       my_ylab = substitute("Bite rate @ " * z * degree * "C",
                                            list(z = z)),
                       my_xlab = "Body mass (g)") +
     scale_x_continuous(breaks = 0:4, labels = LoLinR::rounded(exp(0:4), 1)) +
     scale_y_continuous(breaks = 0:4, labels = LoLinR::rounded(exp(0:4), 1))
-  a <- a +
-    gg_relative_text(a, px = 0.03, py = 0.95,
-                     "a", fontface = "bold", size = 5) +
-    gg_relative_text(a, px = 0.03, py = 0.05,
+  f2b <- f2b +
+    gg_relative_text(f2b, px = 0.03, py = 0.95,
+                     "b", fontface = "bold", size = 5) +
+    gg_relative_text(f2b, px = 0.03, py = 0.05,
                      deparse(substitute("Bayesian " * italic("R")^2 == z,
                                         list(z = r2))),
                      fontface = "bold", size = 4, hjust = 0,
                      parse = TRUE) +
-    gg_relative_text(a, px = 0.95, py = 0.95,
+    gg_relative_text(f2b, px = 0.95, py = 0.95,
                      deparse(substitute(y == k %.% x^z,
-                                        list(k = k_a,
+                                        list(k = k_b,
                                              z = LoLinR::rounded(alpha, 2)))),
                      fontface = "bold", size = 4,
                      hjust = 1, parse = TRUE)
@@ -209,7 +283,7 @@ fig_1 <- function(bites_data, bites_model) {
     LoLinR::rounded(1)
   my_xlab <- expression(paste("Temperature (" * degree, "C)",
                               sep = ""))
-  b <- bites_fig_base(temp_ggplot, aes_vecs_b,
+  f2c <- bites_fig_base(temp_ggplot, aes_vecs_b,
                       my_ylab = paste0("Bite rate @ ", my_ylab, " g"),
                       my_xlab = my_xlab) +
     scale_x_continuous(breaks = axis_labs_b,
@@ -218,25 +292,25 @@ fig_1 <- function(bites_data, bites_model) {
     scale_y_continuous(breaks = 0:4, labels = LoLinR::rounded(exp(0:4), 1))
     z_lab <- substitute(a %.% italic("f") * "(x)",
                         list(a = LoLinR::rounded(er, 2)))
-    my_lab <- substitute(y == k %.% italic("e") ^ {z},
-                         list(k = k_b, z = z_lab))
+    my_lab <- substitute(y == k %.% italic("e") ^ z,
+                         list(k = k_c, z = z_lab))
     my_lab <- paste0(deparse(my_lab), collapse = "")
-  b <- b +
-    gg_relative_text(b, px = 0.03, py = 0.95, "b",
+  f2c <- f2c +
+    gg_relative_text(f2c, px = 0.03, py = 0.95, "c",
                      fontface = "bold", size = 5) +
-    gg_relative_text(a, px = 0.02,
+    gg_relative_text(f2c, px = 0.44,
                      py = 0.85, my_lab, fontface = "bold", size = 4,
                      hjust = 1, parse = TRUE)
-  gridExtra::grid.arrange(a, b, nrow = 1)
+  f2a / (f2b + f2c)
 }
 
-make_fig_2 <- function(dest, ...) {
-  ggplot2::ggsave(dest, fig_2(...), device = "pdf", width = 6,
-                  height = 6, units = "in", onefile = FALSE,
+make_fig_3 <- function(dest, ...) {
+  ggplot2::ggsave(dest, fig_3(...), device = "pdf", width = 6,
+                  height = 5, units = "in", onefile = FALSE,
                   useDingbats = FALSE)
 }
 
-fig_2 <- function(mouth_data, mouth_model) {
+fig_3 <- function(mouth_data, mouth_model) {
   mouth_data <- mouth_data %>%
     dplyr::mutate_at(dplyr::vars(local, colors, shapes), unname) %>%
     dplyr::select(spp, local, mass_g, mouth_volume, colors, shapes)
@@ -285,13 +359,13 @@ fig_2 <- function(mouth_data, mouth_model) {
                      parse = TRUE)
 }
 
-make_fig_3 <- function(dest, ...) {
-  ggplot2::ggsave(dest, fig_3(...), device = "pdf", width = 12,
+make_fig_4 <- function(dest, ...) {
+  ggplot2::ggsave(dest, fig_4(...), device = "pdf", width = 12,
                   height = 5, units = "in", onefile = FALSE,
                   useDingbats = FALSE)
 }
 
-fig_3 <- function(gut_content_data, diet_data, id_data) {
+fig_4 <- function(gut_content_data, diet_data, id_data) {
   gut_content_data <- gut_content_data %>%
     dplyr::filter(item != "Total") %>%
     droplevels
@@ -370,37 +444,6 @@ fig_3 <- function(gut_content_data, diet_data, id_data) {
                shape = 18, size = 3,
                colour = "black",
                position = position_nudge(y = -0.2))
-}
-
-make_fig_4 <- function(dest, ...) {
-  ggplot2::ggsave(dest, fig_4(...), device = "pdf", width = 6,
-                  height = 6, units = "in", onefile = FALSE,
-                  useDingbats = FALSE)
-}
-
-fig_4 <- function(correlation_data, logratios_correlation) {
-  g1 <- ggplot(data = correlation_data,
-               mapping = aes(x = x, y = y, fill = local,
-                             colour = local, shape = local,
-                             label = local)) +
-    geom_point(size = 4, alpha = 0.8, show.legend = FALSE) +
-    scale_colour_manual(values = correlation_data$colors) +
-    scale_fill_manual(values = correlation_data$colors) +
-    scale_shape_manual(values = correlation_data$shapes) +
-    scale_x_continuous(limits = c(-5.15, -3.75)) +
-    xlab("Diet log-ratio") +
-    ylab("Normalised bite rate (natural log)") +
-    my_theme() +
-    geom_text(check_overlap = TRUE, hjust = 0,
-              nudge_x = 0.05, show.legend = FALSE,
-              colour = "black")
-  my_lab <- deparse(substitute(italic("r") == a * " (N.S.)",
-                               list(a = unname(round(logratios_correlation,
-                                                     2)))))
-  g1 +
-    gg_relative_text(g1, px = 0.95, py = 0.95,
-                     my_lab, size = 4, hjust = 1,
-                     parse = TRUE)
 }
 
 make_fig_5 <- function(dest, ...) {
@@ -544,21 +587,14 @@ fig_5 <- function(bites_model, mouth_model, bites_data, ophio_png) {
                         ymax = log(300)))
 }
 
-make_fig_s_1to3 <- function(dest, logratios = FALSE, adjust = FALSE, ...) {
-  if (logratios) {
-    ggplot2::ggsave(dest, fig_s_1to3(..., logratios = logratios),
-                    device = "pdf", width = (14.37 / 4) * 3,
-                    height = 3.67, units = "in", onefile = FALSE,
-                    useDingbats = FALSE)
-  } else {
-    ggplot2::ggsave(dest, fig_s_1to3(..., adjust = adjust),
-                    device = "pdf", width = 14.37,
-                    height = 3.67, units = "in",
-                    onefile = FALSE, useDingbats = FALSE)
-  }
+make_fig_s_1to2 <- function(dest, adjust = FALSE, ...) {
+  ggplot2::ggsave(dest, fig_s_1to2(..., adjust = adjust),
+                  device = "pdf", width = 14.37,
+                  height = 3.67, units = "in",
+                  onefile = FALSE, useDingbats = FALSE)
 }
 
-fig_s_1to3 <- function(data, model, x, logratios = FALSE, adjust = FALSE) {
+fig_s_1to2 <- function(data, model, x, logratios = FALSE, adjust = FALSE) {
   my_theme <- function() {
     theme_bw() +
       theme(plot.margin = unit(c(0.2, 0.1, 0.4, 0.2), "in"),
@@ -649,92 +685,13 @@ fig_s_1to3 <- function(data, model, x, logratios = FALSE, adjust = FALSE) {
   }
 }
 
-make_fig_s_4 <- function(dest, ...) {
-  ggplot2::ggsave(dest, fig_s_4(...), device = "pdf",
-                  width = 10, height = 5, units = "in",
-                  onefile = FALSE, useDingbats = FALSE)
-}
-
-fig_s_4 <- function(bites_data) {
-  bites_data <- bites_data %>%
-    dplyr::mutate(bites_min = bites_original / obs_time,
-                  local_original = as.factor(local_original),
-                  local_original = dplyr::recode(local_original,
-                                                 ascension_island = "Ascension",
-                                                 aspsp = "SPSPA",
-                                                 atol_das_rocas = "Rocas",
-                                                 bahia = "Salvador",
-                                                 bocas_del_toro = "Bocas",
-                                                 fernando_de_noronha = "Noronha",
-                                                 principe_island = "Principe",
-                                                 santa_catarina.sum = "SC summer",
-                                                 santa_catarina.win = "SC winter",
-                                                 .default = levels(local_original)))
-  mean_bites <- bites_data %>%
-    dplyr::group_by(local_original) %>%
-    dplyr::summarise("mean" = mean(bites_min),
-                     "error" = sd(bites_min) / sqrt(dplyr::n())) %>%
-    as.data.frame()
-
-  ggplot(data = bites_data) +
-    geom_boxplot(mapping = aes(x = local_original,
-                               y = bites_min),
-                 outlier.shape = NA,
-                 notch = TRUE) +
-    geom_jitter(mapping = aes(x = local_original,
-                              y = bites_min),
-                fill = alpha(bites_data$colors, 0.8),
-                colour = bites_data$colors,
-                shape = bites_data$shapes,
-                size = 4,
-                position = position_jitter(0.1, 0),
-                stroke = 0.3) +
-    scale_x_discrete(limits = c("Noronha", "Rocas", "Salvador",
-                                "SPSPA", "Principe", "SC summer",
-                                "SC winter", "Bocas", "Ascension")) +
-    xlab(label = NULL) +
-    ylab(label = "Bites / min") +
-    theme(axis.text.x = element_text(colour = "black",
-                                     size = 12, angle = 0,
-                                     vjust = 0.5, hjust = 0.5,
-                                     face = "plain"),
-          axis.text.y = element_text(colour = "black",
-                                     size = 12, angle = 0,
-                                     vjust = 0.5, face = "plain"),
-          panel.grid.minor = element_blank(),
-          panel.background = element_rect(fill = NA, color = "black"),
-          axis.title = element_text(size = 14, face = "bold"),
-          axis.line = element_line(colour = "black", size = 0.5,
-                                   linetype = "solid"),
-          strip.background.x = element_rect(color = "black"),
-          strip.text.x = element_text(size = 12, angle = 0, face = "bold"),
-          axis.ticks.x = element_line(size = 0.5, linetype = "solid",
-                                      color = "black"),
-          axis.ticks.length = unit(0.1, "cm"),
-          axis.ticks.y = element_line(size = 0.5, linetype = "solid",
-                                      color = "black"),
-          legend.position = "") +
-    geom_errorbar(data = mean_bites,
-                  mapping = aes(x = local_original,
-                                ymax = mean + error,
-                                ymin = mean - error),
-                  width = 0, size = 1.2,
-                  color = "black") +
-    geom_point(data = mean_bites,
-               mapping = aes(x = local_original, y = mean),
-               shape = 21, size = 2.5,
-               colour = "black",
-               fill = "white",
-               stroke = 1.5)
-}
-
-make_fig_s_5 <- function(dest, ...) {
-  ggplot2::ggsave(dest, fig_s_5(...), device = "pdf", width = 5,
+make_fig_s_3 <- function(dest, ...) {
+  ggplot2::ggsave(dest, fig_s_3(...), device = "pdf", width = 5,
                   height = 5, units = "in", onefile = FALSE,
                   useDingbats = FALSE)
 }
 
-fig_s_5 <- function(intestine_data) {
+fig_s_3 <- function(intestine_data) {
   intestine_data <- intestine_data %>%
     dplyr::mutate(local = as.factor(local),
                   local = dplyr::recode(local,

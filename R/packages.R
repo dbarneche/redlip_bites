@@ -1,6 +1,7 @@
 library(drake)
 library(plyr)
 library(tidyverse)
+library(patchwork)
 library(tidyselect)
 library(bayesplot)
 library(grid)

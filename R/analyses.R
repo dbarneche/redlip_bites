@@ -159,37 +159,6 @@ make_id_data <- function(gut_content_data) {
     dplyr::filter(iai_per > 0)
 }
 
-make_logratios_data <- function(diet_data, bites_data, gut_content_data) {
-  match_data <- diet_data  %>%
-    dplyr::mutate(local = dplyr::recode(local,
-                                        aspsp = "SPSPA",
-                                        atol_das_rocas = "Rocas",
-                                        bahia = "Salvador",
-                                        principe_island = "Principe",
-                                        santa_catarina = "St Catarina",
-                                        .default = levels(local)),
-                  ln_fullness = log(fullness * 0.25),
-                  temp_eff = unique(bites_data$mean_temp_k - 273.15) -
-                    mean_temp) %>%
-    dplyr::mutate_if(is.factor, as.character) %>%
-    dplyr::select(spp, local, ind, ln_fullness, ln_mass_g, mean_temp,
-                  temp_eff, colors, shapes)
-
-  plyr::ddply(gut_content_data, .(local, ind), function(x) {
-    animals <- c("Copepoda", "Eggs", "Mollusca", "Other animals")
-    others <- c("Chlorophyta", "Rhodophyta", "Heterokontophyta",
-                "Uniden. algae", "Organic detritus")
-    x %>%
-      dplyr::mutate(log_ratio = log(sum(vol_mm[item %in% animals]) /
-                                      sum(vol_mm[item %in% others])),
-                    item = "All animals") %>%
-      dplyr::filter(log_ratio != -Inf) %>%
-      dplyr::slice(1)
-  }) %>%
-    dplyr::mutate_if(is.factor, as.character) %>%
-    dplyr::left_join(match_data)
-}
-
 make_intestine_data <- function(cols, shps, ...) {
   locals_str <- c("principe" = "principe_island",
                   "rocas_atoll" = "atol_das_rocas",
@@ -202,28 +171,6 @@ make_intestine_data <- function(cols, shps, ...) {
                   spp = gsub("sp1", "spST", spp),
                   colors = cols[spp],
                   shapes = shps[spp])
-}
-
-make_correlation_data <- function(diet_data, bites_model, logratios_model) {
-  ratio_coefs <- coef(logratios_model)$local[, "Estimate", "Intercept"]
-  names(ratio_coefs) <- c("principe_island", "atol_das_rocas",
-                          "bahia", "aspsp", "santa_catarina")
-  bites_coefs <- coef(bites_model)$local %>%
-    .[, "Estimate", "Intercept"] %>%
-    .[names(ratio_coefs)]
-  data.frame(x = unname(ratio_coefs),
-             y = unname(bites_coefs),
-             shapes = diet_data$shapes[match(names(ratio_coefs),
-                                             diet_data$local)],
-             colors = diet_data$colors[match(names(ratio_coefs),
-                                             diet_data$local)],
-             local = names(ratio_coefs),
-             stringsAsFactors = FALSE) %>%
-    dplyr::mutate(local = dplyr::recode(local, aspsp = "SPSPA",
-                                        atol_das_rocas = "Rocas",
-                                        bahia = "Salvador",
-                                        principe_island = "Principe",
-                                        santa_catarina = "St Catarina"))
 }
 
 ########
@@ -281,35 +228,8 @@ run_mouth_model <- function(data) {
             iter = 5e3, warmup = 2.5e3)
 }
 
-run_logratios_model <- function(data) {
-  set.seed(10)
-  full <- brms::brm(log_ratio ~ ln_fullness + ln_mass_g +
-                      temp_eff + (1 | local),
-                    data = data,
-                    family = gaussian(),
-                    prior = c(prior(cauchy(0, 5), "sigma")),
-                    sample_prior = TRUE, chains = 4, cores = 4,
-                    iter = 5e3, warmup = 2.5e3,
-                    control = list(adapt_delta = 0.99,
-                                   max_treedepth = 18))
-  set.seed(10)
-  nest <- brms::brm(log_ratio ~ 1 + (1 | local),
-                    data = data,
-                    family = gaussian(),
-                    prior = c(prior(cauchy(0, 5), "sigma")),
-                    sample_prior = TRUE, chains = 4, cores = 4,
-                    iter = 5e3, warmup = 2.5e3,
-                    control = list(adapt_delta = 0.99,
-                                   max_treedepth = 18))
-  run_model_comparison(full, nest)
-}
-
-run_logratios_correlation <- function(correlation_data) {
-  cor.test(correlation_data$x, correlation_data$y)
-}
-
 make_ms_numbers <- function(bites_data, bites_model, mouth_model,
-                            id_data, logratios_model) {
+                            id_data) {
   rocas <- bites_data %>%
     dplyr::filter(local == "atol_das_rocas")
   temp_1 <- 30
@@ -327,9 +247,6 @@ make_ms_numbers <- function(bites_data, bites_model, mouth_model,
        bites_model_fixef = brms::fixef(bites_model),
        mouth_model_r2 = brms::bayes_R2(mouth_model),
        mouth_model_fixef = brms::fixef(mouth_model),
-       logratios_model_r2 = brms::bayes_R2(logratios_model),
-       logratios_model_ranef = summary(logratios_model)$random$local,
-       logratios_model_fixef = brms::fixef(logratios_model),
        id_stats = {
          id_data %>%
          dplyr::group_by(item) %>%
