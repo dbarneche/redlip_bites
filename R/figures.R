@@ -306,7 +306,7 @@ fig_2 <- function(bites_data, bites_model) {
 
 make_fig_3 <- function(dest, ...) {
   ggplot2::ggsave(dest, fig_3(...), device = "pdf", width = 6,
-                  height = 5, units = "in", onefile = FALSE,
+                  height = 5.3, units = "in", onefile = FALSE,
                   useDingbats = FALSE)
 }
 
@@ -317,7 +317,10 @@ fig_3 <- function(mouth_data, mouth_model) {
   coefs <- brms::fixef(mouth_model)[, "Estimate"]
   x_range <- seq(min(mouth_data$mass_g), max(mouth_data$mass_g),
                  length.out = 30)
-  fit_d <- data.frame(x = x_range, y = exp(coefs[1]) * x_range ^ coefs[2])
+  fit_d <- predict(mouth_model, newdata = data.frame(ln_mass_g = log(x_range)))
+  pols <-  data.frame(mass_g = c(x_range, rev(x_range))) %>%
+    dplyr::mutate(vol = exp(c(fit_d[, "Q2.5"], rev(fit_d[, "Q97.5"]))))
+  fit_d <- data.frame(x = x_range, y = exp(fit_d[, "Estimate"]))
   r2 <- brms::bayes_R2(mouth_model) %>%
     data.frame() %>%
     dplyr::select(Estimate) %>%
@@ -325,6 +328,11 @@ fig_3 <- function(mouth_data, mouth_model) {
   my_cols <- make_aes_vec(mouth_data, "colors")
   my_shps <- make_aes_vec(mouth_data, "shapes")
   g1 <- ggplot() +
+    geom_polygon(data = pols,
+                 mapping = aes(x = mass_g,
+                               y = vol),
+                 fill = "grey90",
+                 alpha = 0.5) +
     geom_point(data = mouth_data,
                mapping = aes(x = mass_g,
                              y = mouth_volume,
