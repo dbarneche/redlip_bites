@@ -1,25 +1,41 @@
 ######################
 # AUXILLIARY FUNCTIONS
 ######################
+trim_png_read <- function(file_path) {
+  png_file <- png::readPNG(file_path)
+  trim_png_blanks(png_file)
+}
+
+are_all_one <- function(x) {
+  all(x == 1)
+}
+
+trim_png_blanks <- function(png_mat) {
+  chosen_rows <- !apply(png_mat[, , 1], 1, are_all_one)
+  chosen_cols <- !apply(png_mat[, , 1], 2, are_all_one)
+  png_mat[chosen_rows, chosen_cols, ]
+}
+
+make_grob_png <- function(...) {
+  grid::rasterGrob(trim_png_read(...), interpolate = TRUE)
+}
+
+amp_seq <- function(x, n) {
+  seq(min(x), max(x), length.out = n)
+}
+
+make_polygon_data <- function(posterior_data, size_data) {
+  qts <- apply(posterior_data, 2, HDInterval::hdi, credMass = 0.95)
+  data.frame(mass_g = c(size_data$mass_g, rev(size_data$mass_g))) %>%
+    dplyr::mutate(m_sp_c_rate = c(qts["lower", ], rev(qts["upper", ])) / mass_g)
+}
+
 make_png <- function(origin_file_name, output_file_name) {
   system(paste0("sips -s formatOptions best -s format png ",
                 origin_file_name,
                 " --out ",
                 output_file_name))
   file.info(output_file_name)
-}
-
-to_dev <- function(expr, dev, filename, ..., verbose = TRUE) {
-  if (verbose) {
-    cat(sprintf("Creating %s\n", filename))
-  }
-  dev(filename, ...)
-  on.exit(dev.off())
-  eval.parent(substitute(expr))
-}
-
-to_pdf <- function(expr, filename, ...) {
-  to_dev(expr, pdf, filename, ...)
 }
 
 make_model_ggplot_data <- function(raw_data, model_list, resp) {
@@ -385,6 +401,147 @@ fig_4 <- function(correlation_data, logratios_correlation) {
     gg_relative_text(g1, px = 0.95, py = 0.95,
                      my_lab, size = 4, hjust = 1,
                      parse = TRUE)
+}
+
+make_fig_5 <- function(dest, ...) {
+  ggplot2::ggsave(dest, fig_5(...), device = "pdf", width = 6.14,
+                  height = 4.89, units = "in", onefile = FALSE,
+                  useDingbats = FALSE)
+}
+
+fig_5 <- function(bites_model, mouth_model, bites_data, ophio_png) {
+  bdata <- bites_model$best$data
+  locs_temps_sizes <- plyr::ddply(bites_data, .(local), function(x) {
+    data.frame(mean_mass_g = mean(x$mass_g),
+               mean_temp = mean(x$temperature))
+  }) %>%
+    tibble::column_to_rownames("local")
+
+  temp_sc <- locs_temps_sizes["santa_catarina", "mean_temp"]
+  size_sc <- locs_temps_sizes["santa_catarina", "mean_mass_g"]
+  temp_at <- locs_temps_sizes["atol_das_rocas", "mean_temp"]
+  size_at <- locs_temps_sizes["atol_das_rocas", "mean_mass_g"]
+
+  # temp_controlled @ 24.45
+  temp_ctrld_df <- data.frame(ln_mass_g = amp_seq(bdata$ln_mass_g, 50)) %>%
+    dplyr::mutate(ln_obs_time = 0, # per minute
+                  inv_kt = inv_kt(temp_sc))
+  temp_ctrld_bites <- brms::posterior_epred(bites_model$best, re_formula = NA,
+                                            newdata = temp_ctrld_df)
+  temp_ctrld_vol <- brms::posterior_epred(mouth_model, re_formula = NA,
+                                          newdata = temp_ctrld_df)
+
+  temp_ctrld_cons <- exp(temp_ctrld_vol) * exp(temp_ctrld_bites)
+
+  fits_temp <- data.frame(c_rate = apply(temp_ctrld_cons, 2, median)) %>%
+    dplyr::mutate(mass_g = exp(temp_ctrld_df$ln_mass_g),
+                  m_sp_c_rate = c_rate / mass_g)
+  pols_temp <- make_polygon_data(temp_ctrld_cons, fits_temp)
+
+  # temp_controlled @ 29.6
+  temp_ctrld_df2 <- data.frame(ln_mass_g = amp_seq(bdata$ln_mass_g, 50)) %>%
+    dplyr::mutate(ln_obs_time = 0, # per minute
+                  inv_kt = inv_kt(temp_at))
+  temp_ctrld_bites2 <- brms::posterior_epred(bites_model$best, re_formula = NA,
+                                            newdata = temp_ctrld_df2)
+  temp_ctrld_vol2 <- brms::posterior_epred(mouth_model, re_formula = NA,
+                                          newdata = temp_ctrld_df2)
+  temp_ctrld_cons2 <- exp(temp_ctrld_vol2) * exp(temp_ctrld_bites2)
+
+  fits_temp2 <- data.frame(c_rate = apply(temp_ctrld_cons2, 2, median)) %>%
+    dplyr::mutate(mass_g = exp(temp_ctrld_df2$ln_mass_g),
+                  m_sp_c_rate = c_rate / mass_g)
+  pols_temp2 <- make_polygon_data(temp_ctrld_cons2, fits_temp2)
+
+  # points for comparison
+  temp_ctrld_df3 <- data.frame(ln_mass_g = log(c(size_sc, size_at))) %>%
+    dplyr::mutate(ln_obs_time = 0, # per minute
+                  inv_kt = inv_kt(c(temp_sc, temp_at)))
+  temp_ctrld_bites3 <- predict(bites_model$best, re_formula = NA,
+                              newdata = temp_ctrld_df3)
+  temp_ctrld_vol3 <- predict(mouth_model, re_formula = NA,
+                            newdata = temp_ctrld_df3)
+  temp_ctrld_cons3 <- exp(temp_ctrld_vol3[, "Estimate"]) *
+    exp(temp_ctrld_bites3[, "Estimate"])
+  fits_temp3 <- data.frame(c_rate = temp_ctrld_cons3) %>%
+    dplyr::mutate(mass_g = exp(temp_ctrld_df3$ln_mass_g),
+                  m_sp_c_rate = c_rate / mass_g)
+
+  triangle <- data.frame(x = c(rep(fits_temp3$mass_g[2], 2),
+                               fits_temp3$mass_g[1])) %>%
+    dplyr::mutate(y = c(fits_temp3$m_sp_c_rate[2],
+                        fits_temp3$m_sp_c_rate[1],
+                        fits_temp3$m_sp_c_rate[1]))
+  f_change <- round(fits_temp3$m_sp_c_rate[2] /
+    fits_temp3$m_sp_c_rate[1], 1)
+
+  ggplot() +
+    geom_polygon(data = pols_temp,
+                 mapping = aes(x = mass_g,
+                               y = m_sp_c_rate),
+                 fill = "dodgerblue3",
+                 alpha = 0.5) +
+    geom_polygon(data = pols_temp2,
+                 mapping = aes(x = mass_g,
+                               y = m_sp_c_rate),
+                 fill = "darkred",
+                 alpha = 0.5) +
+    geom_line(data = fits_temp,
+              mapping = aes(x = mass_g, y = m_sp_c_rate),
+              linetype = 2,
+              size = 1,
+              col = "dodgerblue4") +
+    geom_line(data = fits_temp2,
+              mapping = aes(x = mass_g, y = m_sp_c_rate),
+              linetype = 2,
+              size = 1,
+              col = "darkred") +
+    geom_line(data = triangle,
+              mapping = aes(x = x, y = y),
+              linetype = 2,
+              size = 0.5) +
+    geom_point(data = fits_temp3,
+               mapping = aes(x = mass_g, y = m_sp_c_rate),
+               bg = c("dodgerblue4", "darkred"),
+               shape = 21:22, size = 5) +
+    geom_segment(data = fits_temp3,
+                 mapping = aes(x = mass_g[1] - 3,
+                               y = m_sp_c_rate[1],
+                               xend = mass_g[2] + 0.5,
+                               yend = m_sp_c_rate[2]),
+                 arrow = arrow(length = unit(0.3, "cm"))) +
+    labs(x = "Body mass (g)",
+         y = expression(atop("Upper-bound mass-specific",
+                             paste("consumption rate (mm"^3,
+                                   " g"^-1, " min"^-1, ")",
+                                   sep = ""))),
+         title = "Mean posterior prediction",
+         subtitle = "Equation 2") +
+    theme_classic() +
+    scale_y_continuous(trans = "log", breaks = c(7.4, 20.1, 54.5)) +
+    scale_x_continuous(trans = "log", breaks = c(1, 2.7, 7.4, 20.1, 54.5)) +
+    annotate("text", x = 2.3, y = 28,
+             label = paste0(f_change, " fold"),
+             hjust = 1, vjust = 0.5, size = 5) +
+    annotate("text", x = 30.529, y = exp(log(22.4658) + 0.2),
+             label = "Santa Catarina",
+             hjust = 0.5, vjust = 0, size = 5) +
+    annotate("text", x = 2.513, y = exp(log(41.1965) + 0.2),
+             label = "Rocas Atoll",
+             hjust = 0.5, vjust = 0, size = 5) +
+    theme(axis.text = element_text(size = 12),
+          axis.title = element_text(size = 15)) +
+    coord_cartesian(clip = "off") +
+    layer(data = fits_temp,
+          stat = StatIdentity,
+          position = PositionIdentity,
+          geom = ggplot2:::GeomCustomAnn,
+          inherit.aes = FALSE,
+          params = list(grob = ophio_png,
+                        xmin = log(20.1),
+                        xmax = log(90),
+                        ymin = log(100),
+                        ymax = log(300)))
 }
 
 make_fig_s_1to3 <- function(dest, logratios = FALSE, adjust = FALSE, ...) {

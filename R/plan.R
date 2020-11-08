@@ -35,6 +35,7 @@ plan  <-  drake::drake_plan(
   fig_out_folder = dir.create(file_out("output/figures/"),
                               recursive = TRUE,
                               showWarnings = FALSE),
+  ophio_png = make_grob_png("pics/ophio.png"),
   fig_1_pdf = {
     fig_out_folder
     make_fig_1(file_out("output/figures/fig_1.pdf"), bites_data,
@@ -62,6 +63,13 @@ plan  <-  drake::drake_plan(
   },
   fig_4_png = make_png(file_in("output/figures/fig_4.pdf"),
                        file_out("output/figures/fig_4.png")),
+  fig_5_pdf = {
+    fig_out_folder
+    make_fig_5(file_out("output/figures/fig_5.pdf"),
+               bites_model, mouth_model, bites_data, ophio_png)
+  },
+  fig_5_png = make_png(file_in("output/figures/fig_5.pdf"),
+                       file_out("output/figures/fig_5.png")),
   fig_s_1_pdf = {
     fig_out_folder
     make_fig_s_1to3(file_out("output/figures/fig_s_1.pdf"),
