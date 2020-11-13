@@ -136,16 +136,9 @@ make_gut_content_data <- function(diet_data) {
 }
 
 make_id_data <- function(gut_content_data) {
-  gut_content_data <- gut_content_data %>%
-    dplyr::filter(item != "Total") %>%
-    droplevels
-  mean_cont <- gut_content_data %>%
-    dplyr::group_by(local, item) %>%
-    dplyr::summarise("mean" = mean(vol_per),
-                     "error" = sd(vol_per) / sqrt(dplyr::n())) %>%
-    as.data.frame %>%
-    dplyr::filter(mean > 0)
   gut_content_data %>%
+    dplyr::filter(item != "Total") %>%
+    droplevels %>%
     dplyr::group_by(local, item) %>%
     dplyr::summarise(numb_stomach = sum(vol_per > 0),
                      occurrence = numb_stomach / dplyr::n() * 100,
