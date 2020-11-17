@@ -17,6 +17,15 @@ plan  <-  drake::drake_plan(
   id_data = make_id_data(gut_content_data),
   intest_data = make_intestine_data(cols, shps,
                                     file_name = file_in("data/diet_data.csv")),
+  osp1_shp = sf::st_read("data/shps/Ophioblenniusp1.shp"),
+  osp2_shp = sf::st_read("data/shps/Ophioblenniusp2.shp"),
+  oatl_shp = sf::st_read("data/shps/Ophioblenniusatlanticus.shp"),
+  omac_shp = sf::st_read("data/shps/Ophmacclurei.shp"),
+  otri_shp = sf::st_read("data/shps/Ophtrinitatis.shp"),
+  world1 = rnaturalearth::ne_countries(scale = "medium",
+                                        returnclass = "sf"),
+  world2 = rnaturalearth::ne_coastline(scale = "medium",
+                                        returnclass = "sf"),
 
   # Analyses ---------------------------------------------
   bites_model = run_bites_model(bites_data),
@@ -31,6 +40,14 @@ plan  <-  drake::drake_plan(
                               recursive = TRUE,
                               showWarnings = FALSE),
   ophio_png = make_grob_png("pics/ophio.png"),
+  fig_1_pdf = {
+    fig_out_folder
+    make_fig_1(file_out("output/figures/fig_1.pdf"), osp1_shp,
+               osp2_shp, oatl_shp, omac_shp, otri_shp, world1,
+               world2)
+  },
+  fig_1_png = make_png(file_in("output/figures/fig_1.pdf"),
+                       file_out("output/figures/fig_1.png")),
   fig_2_pdf = {
     fig_out_folder
     make_fig_2(file_out("output/figures/fig_2.pdf"), bites_data,

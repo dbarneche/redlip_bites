@@ -144,6 +144,55 @@ make_aes_vec <- function(data, col) {
 ###############
 # PAPER FIGURES
 ###############
+make_fig_1 <- function(dest, ...) {
+  ggplot2::ggsave(dest, fig_1(...), device = "pdf", width = 7,
+                  height = 7, units = "in", onefile = FALSE,
+                  useDingbats = FALSE)
+}
+
+fig_1 <- function(osp1_shp, osp2_shp, oatl_shp,
+                  omac_shp, otri_shp, world1, world2) {
+  wlabs <- data.frame(lat = c(-27.2, -15, -2.1, -4, 3, -10, 2, 11),
+                      lon = c(-45.8, -36, -35, -30, -26, -17, 4, -81),
+                      labs = 1:8)
+  clabs <- data.frame(lat = seq(-42, -28, length.out = 5),
+                      lon = rep(-13, 5),
+                      cols = c("purple", "goldenrod2", "dodgerblue2",
+                               "tomato", "darkseagreen3"),
+                      labs = c("Ophioblennius atlanticus",
+                               "Ophioblennius macclurei",
+                               "Ophioblennius trinitatis",
+                               "Ophioblennius sp. 1",
+                               "Ophioblennius sp. 2"))
+  ggplot() +
+    geom_sf(data = osp1_shp, colour = "tomato",
+            fill = "tomato", alpha = 0.8) +
+    geom_sf(data = osp2_shp, colour = "darkseagreen3",
+            fill = "darkseagreen3", alpha = 0.8) +
+    geom_sf(data = otri_shp, colour = "dodgerblue2",
+            fill = "dodgerblue2", alpha = 0.8) +
+    geom_sf(data = omac_shp, colour = "goldenrod2",
+            fill = "goldenrod2", alpha = 0.8) +
+    geom_sf(data = oatl_shp, colour = "purple",
+            fill = "purple", alpha = 0.6) +
+    geom_sf(data = world1, colour = "grey60", fill = "grey60") +
+    geom_sf(data = world2, colour = "black", lwd = 0.1) +
+    coord_sf(xlim = c(-100, 15), ylim = c(-45, 45), expand = FALSE) +
+    geom_text(data = wlabs,
+              mapping = aes(x = lon, y = lat, label = labs),
+              fontface = "bold") +
+    geom_point(data = clabs,
+               mapping = aes(x = lon, y = lat),
+               colour = rev(clabs$cols), shape = 16, size = 5,
+               alpha = 0.8) +
+    geom_text(data = clabs,
+              mapping = aes(x = lon + 2, y = lat, label = rev(labs)),
+              hjust = 0, size = 3, fontface = "italic") +
+    labs(x = "Longitude", y = "Latitude") +
+    theme_minimal() +
+    theme(panel.border = element_rect(colour = "black", fill = NA))
+}
+
 make_fig_2 <- function(dest, ...) {
   ggplot2::ggsave(dest, fig_2(...), device = "pdf", width = 8.8,
                   height = 7, units = "in", onefile = FALSE,
