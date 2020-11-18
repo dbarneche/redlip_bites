@@ -158,12 +158,7 @@ fig_1 <- function(osp1_shp, osp2_shp, oatl_shp,
   clabs <- data.frame(lat = seq(-42, -28, length.out = 5),
                       lon = rep(-13, 5),
                       cols = c("purple", "goldenrod2", "dodgerblue2",
-                               "tomato", "darkseagreen3"),
-                      labs = c("Ophioblennius atlanticus",
-                               "Ophioblennius macclurei",
-                               "Ophioblennius trinitatis",
-                               "Ophioblennius sp. 1",
-                               "Ophioblennius sp. 2"))
+                               "tomato", "darkseagreen3"))
   ggplot() +
     geom_sf(data = osp1_shp, colour = "tomato",
             fill = "tomato", alpha = 0.8) +
@@ -183,14 +178,26 @@ fig_1 <- function(osp1_shp, osp2_shp, oatl_shp,
               fontface = "bold") +
     geom_point(data = clabs,
                mapping = aes(x = lon, y = lat),
-               colour = rev(clabs$cols), shape = 16, size = 5,
-               alpha = 0.8) +
-    geom_text(data = clabs,
-              mapping = aes(x = lon + 2, y = lat, label = rev(labs)),
-              hjust = 0, size = 3, fontface = "italic") +
+               colour = rev(clabs$cols), fill = rev(clabs$cols),
+               shape = 21, size = 5, alpha = 0.8) +
     labs(x = "Longitude", y = "Latitude") +
     theme_minimal() +
-    theme(panel.border = element_rect(colour = "black", fill = NA))
+    theme(panel.border = element_rect(colour = "black", fill = NA)) +
+    annotate("text", x = -11, y = -42,
+             label = deparse(substitute(italic("Ophioblennius") * " sp. 2")),
+             hjust = 0, size = 3, parse = TRUE) +
+    annotate("text", x = -11, y = -38.5,
+             label = deparse(substitute(italic("Ophioblennius") * " sp. 1")),
+             hjust = 0, size = 3, parse = TRUE) +
+    annotate("text", x = -11, y = -35,
+             label = deparse(substitute(italic("Ophioblennius trinitatis"))),
+             hjust = 0, size = 3, parse = TRUE) +
+    annotate("text", x = -11, y = -31.5,
+             label = deparse(substitute(italic("Ophioblennius macclurei"))),
+             hjust = 0, size = 3, parse = TRUE) +
+    annotate("text", x = -11, y = -28,
+             label = deparse(substitute(italic("Ophioblennius atlanticus"))),
+             hjust = 0, size = 3, parse = TRUE)
 }
 
 make_fig_2 <- function(dest, ...) {
