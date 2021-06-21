@@ -10,6 +10,8 @@ plan  <-  drake::drake_plan(
            "ophioblennius_macclurei" = 23),
   bites_data = make_bite_data(cols, shps,
                               file_name = file_in("data/bites_data.csv")),
+  coords = make_coords(bites_data),
+  bites_data_sat = make_satellite_bites_data(bites_data, coords),
   mouth_data = make_mouth_data(cols, shps, file_name = "data/diet_data.csv"),
   diet_data = make_diet_data(cols, shps, bites_data,
                              file_name = file_in("data/diet_data.csv")),
@@ -29,6 +31,7 @@ plan  <-  drake::drake_plan(
 
   # Analyses ---------------------------------------------
   bites_model = run_bites_model(bites_data),
+  bites_model_sat = run_bites_model(bites_data_sat),
   mouth_model = run_mouth_model(mouth_data),
   intestine_model = intest_data %>%
     stats::kruskal.test(local ~ QI, data = .),
@@ -40,63 +43,31 @@ plan  <-  drake::drake_plan(
                               recursive = TRUE,
                               showWarnings = FALSE),
   ophio_png = make_grob_png("pics/ophio.png"),
-  fig_1_pdf = {
-    fig_out_folder
-    make_fig_1(file_out("output/figures/fig_1.pdf"), osp1_shp,
-               osp2_shp, oatl_shp, omac_shp, otri_shp, world1,
-               world2)
-  },
-  fig_1_png = make_png(file_in("output/figures/fig_1.pdf"),
-                       file_out("output/figures/fig_1.png")),
-  fig_2_pdf = {
-    fig_out_folder
-    make_fig_2(file_out("output/figures/fig_2.pdf"), bites_data,
-               bites_model$best)
-  },
-  fig_2_png = make_png(file_in("output/figures/fig_2.pdf"),
-                       file_out("output/figures/fig_2.png")),
-  fig_3_pdf = {
-    fig_out_folder
-    make_fig_3(file_out("output/figures/fig_3.pdf"), mouth_data, mouth_model)
-  },
-  fig_3_png = make_png(file_in("output/figures/fig_3.pdf"),
-                       file_out("output/figures/fig_3.png")),
-  fig_4_pdf = {
-    fig_out_folder
-    make_fig_4(file_out("output/figures/fig_4.pdf"),
-               gut_content_data, diet_data, id_data)
-  },
-  fig_4_png = make_png(file_in("output/figures/fig_4.pdf"),
-                       file_out("output/figures/fig_4.png")),
-  fig_5_pdf = {
-    fig_out_folder
-    make_fig_5(file_out("output/figures/fig_5.pdf"),
-               bites_model, mouth_model, bites_data, ophio_png)
-  },
-  fig_5_png = make_png(file_in("output/figures/fig_5.pdf"),
-                       file_out("output/figures/fig_5.png")),
-  fig_s_1_pdf = {
-    fig_out_folder
-    make_fig_s_1to2(file_out("output/figures/fig_s_1.pdf"),
-                    adjust = FALSE, bites_data,
-                    bites_model$best, "ln_mass_g")
-  },
-  fig_s_1_png = make_png(file_in("output/figures/fig_s_1.pdf"),
-                         file_out("output/figures/fig_s_1.png")),
-  fig_s_2_pdf = {
-    fig_out_folder
-    make_fig_s_1to2(file_out("output/figures/fig_s_2.pdf"),
-                    adjust = TRUE, mouth_data,
-                    mouth_model, "ln_mass_g")
-  },
-  fig_s_2_png = make_png(file_in("output/figures/fig_s_2.pdf"),
-                         file_out("output/figures/fig_s_2.png")),
-  fig_s_3_pdf = {
-    fig_out_folder
-    make_fig_s_3(file_out("output/figures/fig_s_3.pdf"), intest_data)
-  },
-  fig_s_3_png = make_png(file_in("output/figures/fig_s_3.pdf"),
-                         file_out("output/figures/fig_s_3.png")),
+  fig_1_pdf = make_fig_1(fig_out_folder, file_out("output/figures/fig_1.pdf"),
+                         osp1_shp, osp2_shp, oatl_shp, omac_shp, otri_shp,
+                         world1, world2),
+  fig_2_pdf = make_fig_2(fig_out_folder, file_out("output/figures/fig_2.pdf"),
+                         bites_data, bites_model$best),
+  fig_3_pdf = make_fig_3(fig_out_folder, file_out("output/figures/fig_3.pdf"),
+                         mouth_data, mouth_model),
+  fig_4_pdf = make_fig_4(fig_out_folder, file_out("output/figures/fig_4.pdf"),
+                         gut_content_data, diet_data, id_data),
+  fig_5_pdf = make_fig_5(fig_out_folder, file_out("output/figures/fig_5.pdf"),
+                         bites_model, mouth_model, bites_data, ophio_png),
+  fig_s1_pdf = make_fig_s1_2(fig_out_folder,
+                             file_out("output/figures/fig_s1.pdf"),
+                             adjust = FALSE, bites_data, bites_model$best,
+                             "ln_mass_g"),
+  fig_s2_pdf = make_fig_s1_2(fig_out_folder,
+                             file_out("output/figures/fig_s2.pdf"),
+                             adjust = TRUE, mouth_data, mouth_model,
+                             "ln_mass_g"),
+  fig_s3_pdf = make_fig_s3(fig_out_folder,
+                           file_out("output/figures/fig_s3.pdf"),
+                           bites_data_sat, bites_model_sat$best,
+                           bites_model$best, coords),
+  fig_s4_pdf = make_fig_s4(fig_out_folder,
+                           file_out("output/figures/fig_s4.pdf"), intest_data),
 
   # Tables -----------------------------------------------
   tab_out_folder = dir.create("output/tables/", recursive = TRUE,
@@ -104,14 +75,14 @@ plan  <-  drake::drake_plan(
   table_1 = {
     tab_out_folder
     make_table_1(file_out("output/tables/table_1.csv"),
-                 bites_data, diet_data, intest_data)
+                 bites_data, diet_data, intest_data, mouth_data)
   },
-  table_s_1 = {
+  table_s1 = {
     tab_out_folder
-    make_soi_table(file_out("output/tables/table_s_1.csv"), bites_model$best)
+    make_soi_table(file_out("output/tables/table_s1.csv"), bites_model$best)
   },
-  table_s_2 = {
+  table_s2 = {
     tab_out_folder
-    make_soi_table(file_out("output/tables/table_s_2.csv"), mouth_model)
+    make_soi_table(file_out("output/tables/table_s2.csv"), mouth_model)
   }
 )

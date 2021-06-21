@@ -1,4 +1,5 @@
-make_table_1 <- function(dest, bites_data, diet_data, intestine_data) {
+make_table_1 <- function(dest, bites_data, diet_data, intestine_data,
+                         mouth_data) {
   x <- bites_data %>%
     dplyr::group_by(local) %>%
     dplyr::summarise(sp = unique(spp),
@@ -11,7 +12,18 @@ make_table_1 <- function(dest, bites_data, diet_data, intestine_data) {
   z <- intestine_data %>%
     dplyr::group_by(local) %>%
     dplyr::summarise(intestine = dplyr::n())
-  table_1 <- dplyr::left_join(dplyr::left_join(x, y), z)
+  w <- mouth_data %>%
+    dplyr::group_by(local) %>%
+    dplyr::summarise(mouth = length(unique(ind))) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(
+      local = dplyr::recode(local, noronha = "fernando_de_noronha",
+                            rocas_atoll = "atol_das_rocas",
+                            salvador = "bahia", sc = "santa_catarina")
+    )
+  table_1 <- dplyr::left_join(x, y) %>%
+    dplyr::left_join(z) %>%
+    dplyr::left_join(w, by = "local")
   write.csv(table_1, dest, row.names = TRUE)
   table_1
 }

@@ -30,27 +30,17 @@ make_polygon_data <- function(posterior_data, size_data) {
     dplyr::mutate(m_sp_c_rate = c(qts["lower", ], rev(qts["upper", ])) / mass_g)
 }
 
-make_png <- function(origin_file_name, output_file_name) {
-  system(paste0("sips -s formatOptions best -s format png ",
-                origin_file_name,
-                " --out ",
-                output_file_name))
-  file.info(output_file_name)
-}
-
 make_model_ggplot_data <- function(raw_data, model_list, resp) {
   model_data <- model_list[[resp]]
-  list("output" = model_data,
-       "polygons" = with(model_data,
-                         data.frame(x = c(effect1__,
-                                          rev(effect1__)),
-                                    y_cred = c(lower__,
-                                               rev(upper__)))),
-       "lines" = with(model_data, data.frame(x = effect1__, y = estimate__)),
-       "points" = cbind(attr(model_data, "points"),
-                        (raw_data %>% dplyr::select(c("colors",
-                                                      "shapes",
-                                                      "local"))))
+  list(
+    "output" = model_data,
+    "polygons" = with(model_data,
+                      data.frame(x = c(effect1__, rev(effect1__)),
+                                 y_cred = c(lower__, rev(upper__)))),
+    "lines" = with(model_data, data.frame(x = effect1__, y = estimate__)),
+    "points" = cbind(attr(model_data, "points"),
+                     raw_data %>%
+                       dplyr::select(c("colors", "shapes", "local")))
   )
 }
 
@@ -144,7 +134,7 @@ make_aes_vec <- function(data, col) {
 ###############
 # PAPER FIGURES
 ###############
-make_fig_1 <- function(dest, ...) {
+make_fig_1 <- function(folder, dest, ...) {
   ggplot2::ggsave(dest, fig_1(...), device = "pdf", width = 7,
                   height = 7, units = "in", onefile = FALSE,
                   useDingbats = FALSE)
@@ -200,7 +190,7 @@ fig_1 <- function(osp1_shp, osp2_shp, oatl_shp,
              hjust = 0, size = 3, parse = TRUE)
 }
 
-make_fig_2 <- function(dest, ...) {
+make_fig_2 <- function(folder, dest, ...) {
   ggplot2::ggsave(dest, fig_2(...), device = "pdf", width = 8.8,
                   height = 7, units = "in", onefile = FALSE,
                   useDingbats = FALSE)
@@ -210,17 +200,16 @@ fig_2 <- function(bites_data, bites_model) {
   bdata <- bites_data %>%
     dplyr::mutate(bites_min = bites_original / obs_time,
                   local_original = as.factor(local_original),
-                  local_original = dplyr::recode(local_original,
-                                                 ascension_island = "Ascension",
-                                                 aspsp = "SPSPA",
-                                                 atol_das_rocas = "Rocas",
-                                                 bahia = "Salvador",
-                                                 bocas_del_toro = "Bocas",
-                                                 fernando_de_noronha = "Noronha",
-                                                 principe_island = "Principe",
-                                                 santa_catarina.sum = "SC summer",
-                                                 santa_catarina.win = "SC winter",
-                                                 .default = levels(local_original)))
+                  local_original = dplyr::recode(
+                    local_original, ascension_island = "Ascension",
+                    aspsp = "SPSPA", atol_das_rocas = "Rocas",
+                    bahia = "Salvador", bocas_del_toro = "Bocas",
+                    fernando_de_noronha = "Noronha",
+                    principe_island = "Principe",
+                    santa_catarina.sum = "SC sum.",
+                    santa_catarina.win = "SC win.",
+                    .default = levels(local_original)
+                  ))
   mean_bites <- bdata %>%
     dplyr::group_by(local_original) %>%
     dplyr::summarise("mean" = mean(bites_min),
@@ -241,8 +230,8 @@ fig_2 <- function(bites_data, bites_model) {
                 position = position_jitter(0.1, 0),
                 stroke = 0.3) +
     scale_x_discrete(limits = c("Noronha", "Rocas", "Salvador",
-                                "SPSPA", "Principe", "SC summer",
-                                "SC winter", "Bocas", "Ascension")) +
+                                "SPSPA", "Principe", "SC sum.",
+                                "SC win.", "Bocas", "Ascension")) +
     xlab(label = NULL) +
     ylab(label = "Bites / min") +
     theme(axis.text.x = element_text(colour = "black",
@@ -360,7 +349,7 @@ fig_2 <- function(bites_data, bites_model) {
   f2a / (f2b + f2c)
 }
 
-make_fig_3 <- function(dest, ...) {
+make_fig_3 <- function(folder, dest, ...) {
   ggplot2::ggsave(dest, fig_3(...), device = "pdf", width = 6,
                   height = 5.3, units = "in", onefile = FALSE,
                   useDingbats = FALSE)
@@ -423,7 +412,7 @@ fig_3 <- function(mouth_data, mouth_model) {
                      parse = TRUE)
 }
 
-make_fig_4 <- function(dest, ...) {
+make_fig_4 <- function(folder, dest, ...) {
   ggplot2::ggsave(dest, fig_4(...), device = "pdf", width = 12,
                   height = 5, units = "in", onefile = FALSE,
                   useDingbats = FALSE)
@@ -510,7 +499,7 @@ fig_4 <- function(gut_content_data, diet_data, id_data) {
                position = position_nudge(y = -0.2))
 }
 
-make_fig_5 <- function(dest, ...) {
+make_fig_5 <- function(folder, dest, ...) {
   ggplot2::ggsave(dest, fig_5(...), device = "pdf", width = 6.14,
                   height = 4.89, units = "in", onefile = FALSE,
                   useDingbats = FALSE)
@@ -651,14 +640,14 @@ fig_5 <- function(bites_model, mouth_model, bites_data, ophio_png) {
                         ymax = log(300)))
 }
 
-make_fig_s_1to2 <- function(dest, adjust = FALSE, ...) {
-  ggplot2::ggsave(dest, fig_s_1to2(..., adjust = adjust),
+make_fig_s1_2 <- function(folder, dest, adjust = FALSE, ...) {
+  ggplot2::ggsave(dest, fig_s1_2(..., adjust = adjust),
                   device = "pdf", width = 14.37,
                   height = 3.67, units = "in",
                   onefile = FALSE, useDingbats = FALSE)
 }
 
-fig_s_1to2 <- function(data, model, x, logratios = FALSE, adjust = FALSE) {
+fig_s1_2 <- function(data, model, x, logratios = FALSE, adjust = FALSE) {
   my_theme <- function() {
     theme_bw() +
       theme(plot.margin = unit(c(0.2, 0.1, 0.4, 0.2), "in"),
@@ -749,13 +738,52 @@ fig_s_1to2 <- function(data, model, x, logratios = FALSE, adjust = FALSE) {
   }
 }
 
-make_fig_s_3 <- function(dest, ...) {
-  ggplot2::ggsave(dest, fig_s_3(...), device = "pdf", width = 5,
+make_fig_s3 <- function(folder, dest, ...) {
+  ggplot2::ggsave(dest, fig_s3(...), device = "pdf", height = 9, width = 8.8,
+                  units = "in", onefile = FALSE, useDingbats = FALSE)
+}
+
+fig_s3 <- function(data_sat, best_model_sat, best_model, coords) {
+  upper_set <- fig_2(data_sat, best_model_sat)
+
+  lower_set_a_ <- ggplot(data = coords) +
+    geom_point(mapping = aes(x = temperature, y = sat_sst),
+               colour = coords$colors, fill = coords$colors,
+               shape = coords$shapes, size = 3, alpha = 0.7) +
+    geom_abline(slope = 1, colour = "grey30", linetype = 2) +
+    labs(x = "From diving computer", y = "From NOAA Satellite",
+         colour = "Location") +
+    theme_classic() +
+    theme(axis.text = element_text(size = 12),
+          axis.title = element_text(size = 15)) +
+    coord_cartesian(xlim = c(17.5, 30.5), ylim = c(17.5, 30.5))
+  lower_set_a_ <- lower_set_a_ + 
+    gg_relative_text(lower_set_a_, px = 0.03, py = 0.95,
+                     "d", fontface = "bold", size = 5)
+
+  dens_df <- brms::posterior_samples(best_model_sat, pars = "b_inv_kt") %>%
+    rbind(brms::posterior_samples(best_model, pars = "b_inv_kt")) %>%
+    dplyr::mutate(Source = rep(c("Satellite", "Dive computer"), each = n() / 2))
+  lower_set_b_ <- ggplot(data = dens_df) +
+    geom_density(mapping = aes(x = b_inv_kt, colour = Source, fill = Source),
+                 alpha = 0.8, adjust = 2) +
+    labs(x = "Activation energy (eV)", y = "Density") +
+    theme_classic() +
+    theme(axis.text = element_text(size = 12),
+          axis.title = element_text(size = 15))
+  lower_set_b_ <- lower_set_b_ + 
+    gg_relative_text(lower_set_b_, px = 0.03, py = 0.95,
+                     "e", fontface = "bold", size = 5)
+  upper_set / (lower_set_a_ + lower_set_b_)
+}
+
+make_fig_s4 <- function(folder, dest, ...) {
+  ggplot2::ggsave(dest, fig_s4(...), device = "pdf", width = 5,
                   height = 5, units = "in", onefile = FALSE,
                   useDingbats = FALSE)
 }
 
-fig_s_3 <- function(intestine_data) {
+fig_s4 <- function(intestine_data) {
   intestine_data <- intestine_data %>%
     dplyr::mutate(local = as.factor(local),
                   local = dplyr::recode(local,

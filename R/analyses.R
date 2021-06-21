@@ -1,9 +1,3 @@
-##############
-# STAN OPTIONS
-##############
-rstan::rstan_options(auto_write = TRUE)
-options(mc.cores = parallel::detectCores())
-
 #########
 # GENERAL
 #########
@@ -29,6 +23,11 @@ inv_kt <- function(temp, mean_temp_k = 300.87) {
   1 / 8.62e-5 * (1 / mean_temp_k - 1 / temp_k)
 }
 
+add_a_day <- function(x) {
+  (as.Date(x) + 1) %>%
+    as.character
+}
+
 ###############
 # DATA CLEANING
 # AND MAKING
@@ -48,6 +47,55 @@ make_bite_data <- function(cols, shps, ...) {
                   shapes = shps[spp],
                   local_original = local,
                   local = gsub("santa_catarina.*", "santa_catarina", local))
+}
+
+make_coords <- function(bites_data) {
+  #> # finding the dataset
+  #> check <- rerddap::ed_datasets(which = "griddap")
+  #> grep("sst", check$Title, ignore.case = TRUE, value = TRUE)
+  #> target <- paste0("SST, Daily Optimum Interpolation (OI), AVHRR Only,",
+  #>                  " Version 2, Final, Global, 0.25°, 1982-2020, Lon+/-180")
+  #> grep(target, check$Title, fixed = TRUE)
+  #> check$Dataset.ID[3857]
+
+  # ID "ncdcOisst2Agg_LonPM180" is Daily Optimum Interpolation (OI),
+  # AVHRR Only, Version 2, Final, Global, 0.25°, 1982-2020, Lon+/-180
+  coords <- bites_data %>%
+    dplyr::select(local, site, latitude, longitude, colors, shapes,
+                  temperature, day, month, year) %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(month_ = gsub("ago", "aug", month) %>%
+                    gsub("set", "sep", .) %>%
+                    match(., tolower(month.abb)) %>%
+                    formatC(., width = 2, format = "d", flag = "0"),
+                  day_ = formatC(day, width = 2, format = "d", flag = "0"),
+                  date = paste(year, month_, day_, sep = "-"))
+  sst_info <- rerddap::info("ncdcOisst2Agg_LonPM180")
+  coords$sat_sst <- NA
+  for (i in seq_len(nrow(coords))) {
+    lats <- c(0.05, -0.05) + coords$latitude[i]
+    lons <- c(0.05, -0.05) + coords$longitude[i]
+    dates <- c(coords$date[i], add_a_day(coords$date[i]))
+    grid_ <- rerddap::griddap(sst_info, latitude = lats, longitude = lons,
+                              time = dates, fields = "sst")$data %>%
+      dplyr::filter(grepl(dates[1], time))
+    coords$sat_sst[i] <- mean(grid_$sst, na.rm = TRUE)
+  }
+  coords
+}
+
+make_satellite_bites_data <- function(bites_data, coords) {
+  bites_data %>%
+    dplyr::select(-temperature) %>%
+    dplyr::left_join(
+      coords %>%
+        dplyr::select(sat_sst, latitude, longitude, year, month, day),
+      by = c("latitude", "longitude", "year", "month", "day")
+    ) %>%
+    dplyr::rename(temperature = sat_sst) %>%
+    dplyr::relocate(temperature, .before = start) %>%
+    dplyr::mutate(temp_k = temperature + 273.15, mean_temp_k = mean(temp_k),
+                  inv_kt = 1 / 8.62e-5 * (1 / mean_temp_k - 1 / temp_k))
 }
 
 make_mouth_data <- function(cols, shps, ...) {
