@@ -12,7 +12,7 @@ This repository contains code and data needed to reproduce the article:
 
 **When using the data or code from this project, please cite it as:**
 
-**Nunes LT<sup>†</sup>, Barneche DR<sup>†</sup>, Lastrucci NS, Fraga AA, Nunes JACC, Ferreira CEL, Floeter SR** (2021) dbarneche/redlip_bites: Accepted version of paper data and code of manuscript: Predicting the effects of body size, temperature and diet on animal feeding rates (Functional Ecology). *Zenodo*. DOI: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5003045.svg)](https://doi.org/10.5281/zenodo.5003045.svg)
+**Nunes LT<sup>†</sup>, Barneche DR<sup>†</sup>, Lastrucci NS, Fraga AA, Nunes JACC, Ferreira CEL, Floeter SR** (2021) dbarneche/redlip_bites: Accepted version of paper data and code of manuscript: Predicting the effects of body size, temperature and diet on animal feeding rates (Functional Ecology). *Zenodo*. [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5003045.svg)](https://doi.org/10.5281/zenodo.5003045.svg)
 
 <sup>†</sup> Equal authorship
 
