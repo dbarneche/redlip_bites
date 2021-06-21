@@ -8,11 +8,15 @@ Love](https://badges.frapsoft.com/os/v2/open-source.svg?v=103)
 
 This repository contains code and data needed to reproduce the article:
 
-**Nunes LT, Barneche DR, Lastrucci NS, Fraga AA, Nunes JACC, Ferreira CEL, Floeter SR** (2021) Predicting the effects of body size, temperature and diet on animal feeding rates. *Functional Ecology* (accepted).
+**Nunes LT^†^, Barneche DR^†^, Lastrucci NS, Fraga AA, Nunes JACC, Ferreira CEL, Floeter SR** (2021) Predicting the effects of body size, temperature and diet on animal feeding rates. *Functional Ecology* (accepted).
+
+^†^ Equal authorship
 
 **When using the data or code from this project, please cite it as:**
 
-**Nunes LT, Barneche DR, Lastrucci NS, Fraga AA, Nunes JACC, Ferreira CEL, Floeter SR** (2021) dbarneche/redlip_bites: Accepted version of paper data and code of manuscript: Predicting the effects of body size, temperature and diet on animal feeding rates (Functional Ecology). *Zenodo*. DOI: [![DOI]()]()
+**Nunes LT^†^, Barneche DR^†^, Lastrucci NS, Fraga AA, Nunes JACC, Ferreira CEL, Floeter SR** (2021) dbarneche/redlip_bites: Accepted version of paper data and code of manuscript: Predicting the effects of body size, temperature and diet on animal feeding rates (Functional Ecology). *Zenodo*. DOI: [![DOI]()]()
+
+^†^ Equal authorship
 
 ## Instructions
 
